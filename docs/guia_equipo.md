@@ -10,7 +10,7 @@ Pasos para dejar el proyecto funcionando en otra computadora. Los comandos se es
 
 | Programa | Para qué | Cómo comprobar que está |
 |---|---|---|
-| **Python 3.11 o superior** | Todo el proyecto | `python3 --version` (en Windows, `python --version`) |
+| **Python 3.12 o superior** | Todo el proyecto | `python3 --version` (en Windows, `python --version`) |
 | **Git** | Bajar el repositorio | `git --version` |
 | **FFmpeg** | Notas de voz del dataset y metadatos en los workers | `ffmpeg -version` |
 | Docker (opcional) | Solo si RabbitMQ va a correr en **tu** computadora | `docker --version` |
@@ -25,6 +25,7 @@ Para instalar lo que falte:
 git clone https://github.com/SharonBlanco/Analizador-de-Chats-de-Whatsapp.git
 cd Analizador-de-Chats-de-Whatsapp
 ```
+Más adelante, para traer los cambios del equipo: `git pull`.
 
 ## 3. Crear el entorno de Python (una sola vez)
 
