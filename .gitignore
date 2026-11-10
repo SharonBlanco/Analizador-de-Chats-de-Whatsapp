@@ -1,0 +1,28 @@
+# Entorno virtual de Python
+.venv/
+__pycache__/
+*.pyc
+
+# Datos que genera el sistema al usarse (cada uno tiene los suyos)
+uploads/
+results/
+worker/workspace/
+workspace/
+
+# Dataset generado (se recrea con scripts/generar_dataset.py) y salidas de pruebas
+dataset_prueba/
+dataset_real/
+resultados_descargados/
+
+# Editor / sistema
+.vscode/
+.idea/
+.DS_Store
+
+# Chats importados y exportaciones del teléfono: datos sensibles, nunca al repositorio
+dataset_whatsapp/
+exportados/
+
+# Archivos de bloqueo de LibreOffice / Office
+.~lock.*
+~$*
