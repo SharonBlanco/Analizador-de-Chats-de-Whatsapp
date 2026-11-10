@@ -32,3 +32,7 @@ exportados/
 
 # Credenciales del procesamiento distribuido
 distribuido/config.env
+
+# Dataset: fuentes descargadas y dataset generado (se recrean con generador_dataset/)
+fuentes_dataset/
+dataset_generado/

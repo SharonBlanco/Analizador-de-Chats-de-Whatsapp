@@ -1,0 +1,17 @@
+# Procesamiento en paralelo (coordinador y workers)
+pika==1.3.2
+psutil==5.9.6
+
+# Descarga de OffendES desde Hugging Face (generador del dataset)
+datasets
+huggingface_hub
+
+# AnalyzeWhatsApp.py (análisis y gráficos)
+pandas
+matplotlib
+seaborn
+emoji
+wordcloud
+
+# exportar_whatsapp.py (control del teléfono por ADB)
+uiautomator2
