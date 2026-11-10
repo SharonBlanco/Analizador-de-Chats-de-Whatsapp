@@ -2,13 +2,19 @@
 Estadísticas de una conversación, calculadas a partir de los mensajes parseados.
 
 Mismas métricas que analyze() de AnalyzeWhatsApp.py, pero solo con la biblioteca
-estándar (sin pandas), para que las sirva la interfaz web y el worker de texto.
+estándar (sin pandas), para que las sirva la interfaz web y los workers.
+
+Está dividido en dos fases para poder repartir el trabajo (map-reduce):
+  parcial(bloque)      → agregados de un bloque de mensajes. Lo ejecuta cada worker.
+  combinar(parciales)  → une los agregados de todos los bloques (barrier/join).
+calcular(mensajes) es combinar([parcial(mensajes)]): el análisis local y el
+distribuido usan exactamente el mismo código, así que deben dar el mismo resultado.
 """
 
 from __future__ import annotations
 
 import re
-from collections import Counter, defaultdict
+from collections import Counter
 from datetime import datetime, timedelta
 from statistics import median
 from urllib.parse import urlparse
@@ -36,52 +42,115 @@ def tokens(texto: str) -> list[str]:
     return [p for p in limpio.split() if p not in STOPWORDS and len(p) > 2 and not p.isdigit()]
 
 
-def calcular(mensajes: list[Mensaje], respuestas: bool = True) -> dict:
-    """respuestas=False omite el tiempo de respuesta: al juntar varios chats, el mensaje
-    "siguiente" puede ser de otra conversación y la medida no tendría sentido."""
-    usuarios = [m for m in mensajes if m.tipo != "sistema"]
-    # clave por objeto y no por m.id: al combinar chats los ids se repiten
-    fechas = {id(m): datetime.fromisoformat(m.fecha_hora) for m in mensajes}
+def previos(mensajes: list[Mensaje]) -> dict[int, tuple[str, str]]:
+    """Para el tiempo de respuesta: el mensaje anterior de cada uno en orden cronológico
+    (autor, fecha_hora), indexado por el id del mensaje. Se calcula sobre el chat
+    completo y se reparte con cada bloque: así un bloque puede medir la respuesta a un
+    mensaje que quedó en el bloque anterior."""
+    usuarios = sorted((m for m in mensajes if m.tipo != "sistema"), key=lambda m: (m.fecha_hora, m.id))
+    return {b.id: (a.autor, a.fecha_hora) for a, b in zip(usuarios, usuarios[1:])}
 
-    # ---- por participante
-    por_autor: dict[str, dict] = {}
-    for m in usuarios:
-        a = por_autor.setdefault(m.autor, {"autor": m.autor, "mensajes": 0, "palabras": 0, "textos": 0,
-                                           "multimedia": 0, "primero": m.fecha_hora, "ultimo": m.fecha_hora})
+
+# ============================================================ fase 1: un bloque
+def parcial(mensajes: list[Mensaje], anteriores: dict[int, tuple[str, str]] | None = None) -> dict:
+    """Agregados de un bloque de mensajes. El resultado es JSON (viaja por RabbitMQ).
+    anteriores=None omite el tiempo de respuesta."""
+    autores: dict[str, dict] = {}
+    esperas: dict[str, list[float]] = {}
+    por_dia: Counter = Counter()
+    calor = [[0] * 24 for _ in range(7)]
+    por_tipo: Counter = Counter()
+    palabras: Counter = Counter()
+    dominios: Counter = Counter()
+    usuarios = adjuntos = 0
+
+    for m in mensajes:
+        por_tipo[m.tipo] += 1
+        if m.adjunto:
+            adjuntos += 1
+        if m.tipo == "sistema":
+            continue
+        usuarios += 1
+        a = autores.setdefault(m.autor, {"mensajes": 0, "palabras": 0, "textos": 0, "multimedia": 0,
+                                         "primero": m.fecha_hora, "ultimo": m.fecha_hora})
         a["mensajes"] += 1
         if m.tipo == "texto":
             a["textos"] += 1
             a["palabras"] += len(m.texto.split())
+            palabras.update(tokens(m.texto))
         elif m.tipo in MULTIMEDIA:
             a["multimedia"] += 1
         a["primero"] = min(a["primero"], m.fecha_hora)
         a["ultimo"] = max(a["ultimo"], m.fecha_hora)
 
-    # tiempo de respuesta: minutos entre mensajes consecutivos de autores distintos
-    esperas = defaultdict(list)
-    orden = sorted(usuarios, key=lambda m: (m.fecha_hora, m.id)) if respuestas else []
-    for previo, actual in zip(orden, orden[1:]):
-        if actual.autor != previo.autor:
-            minutos = (fechas[id(actual)] - fechas[id(previo)]).total_seconds() / 60
-            if 0 <= minutos < RESPUESTA_MAX_MIN:
-                esperas[actual.autor].append(minutos)
+        f = datetime.fromisoformat(m.fecha_hora)
+        por_dia[m.fecha_hora[:10]] += 1
+        calor[f.weekday()][f.hour] += 1
+        dominios.update(urlparse(u).netloc.replace("www.", "") for u in URL.findall(m.texto))
 
-    total_usuarios = len(usuarios) or 1
+        previo = anteriores.get(m.id) if anteriores is not None else None
+        if previo and previo[0] != m.autor:
+            minutos = (f - datetime.fromisoformat(previo[1])).total_seconds() / 60
+            if 0 <= minutos < RESPUESTA_MAX_MIN:
+                esperas.setdefault(m.autor, []).append(minutos)
+
+    return {"total": len(mensajes), "usuarios": usuarios, "adjuntos": adjuntos,
+            "autores": autores, "esperas": esperas, "por_dia": dict(por_dia), "calor": calor,
+            "por_tipo": dict(por_tipo), "palabras": dict(palabras), "dominios": dict(dominios)}
+
+
+# ============================================================ fase 2: unir bloques
+def combinar(parciales: list[dict], respuestas: bool = True) -> dict:
+    """Une los agregados de los bloques EN ORDEN (el orden de primera aparición decide
+    los empates, igual que en un único recorrido)."""
+    autores: dict[str, dict] = {}
+    esperas: dict[str, list[float]] = {}
+    por_dia: Counter = Counter()
+    calor = [[0] * 24 for _ in range(7)]
+    por_tipo: Counter = Counter()
+    palabras: Counter = Counter()
+    dominios: Counter = Counter()
+    total = usuarios = adjuntos = 0
+
+    for p in parciales:
+        total += p["total"]
+        usuarios += p["usuarios"]
+        adjuntos += p["adjuntos"]
+        for autor, x in p["autores"].items():
+            a = autores.get(autor)
+            if a is None:
+                autores[autor] = dict(x)
+                continue
+            for k in ("mensajes", "palabras", "textos", "multimedia"):
+                a[k] += x[k]
+            a["primero"] = min(a["primero"], x["primero"])
+            a["ultimo"] = max(a["ultimo"], x["ultimo"])
+        for autor, lista in p["esperas"].items():
+            esperas.setdefault(autor, []).extend(lista)
+        por_dia.update(p["por_dia"])
+        for d in range(7):
+            for h in range(24):
+                calor[d][h] += p["calor"][d][h]
+        por_tipo.update(p["por_tipo"])
+        palabras.update(p["palabras"])
+        dominios.update(p["dominios"])
+
+    total_usuarios = usuarios or 1
     participantes = []
-    for a in por_autor.values():
+    for autor, a in autores.items():
+        e = esperas.get(autor, []) if respuestas else []
         participantes.append({
-            "autor": a["autor"], "mensajes": a["mensajes"],
+            "autor": autor, "mensajes": a["mensajes"],
             "porcentaje": round(100 * a["mensajes"] / total_usuarios, 1),
             "palabras_promedio": round(a["palabras"] / a["textos"], 1) if a["textos"] else 0,
             "multimedia": a["multimedia"],
-            "respuesta_mediana_min": round(median(esperas[a["autor"]]), 1) if esperas[a["autor"]] else None,
-            "respuestas": len(esperas[a["autor"]]),
+            "respuesta_mediana_min": round(median(e), 1) if e else None,
+            "respuestas": len(e),
             "primero": a["primero"], "ultimo": a["ultimo"],
         })
     participantes.sort(key=lambda p: -p["mensajes"])
 
-    # ---- actividad temporal (días sin mensajes incluidos con 0)
-    por_dia = Counter(m.fecha_hora[:10] for m in usuarios)
+    # actividad temporal (días sin mensajes incluidos con 0)
     serie_dias = []
     if por_dia:
         d, fin = datetime.fromisoformat(min(por_dia)), datetime.fromisoformat(max(por_dia))
@@ -89,31 +158,20 @@ def calcular(mensajes: list[Mensaje], respuestas: bool = True) -> dict:
             k = d.date().isoformat()
             serie_dias.append({"fecha": k, "mensajes": por_dia.get(k, 0)})
             d += timedelta(days=1)
-
-    calor = [[0] * 24 for _ in range(7)]          # [día de la semana 0=lunes][hora]
-    for m in usuarios:
-        f = fechas[id(m)]
-        calor[f.weekday()][f.hour] += 1
     por_hora = [sum(calor[d][h] for d in range(7)) for h in range(24)]
     por_dia_semana = [sum(fila) for fila in calor]
-
-    # ---- contenido
-    palabras = Counter(t for m in usuarios if m.tipo == "texto" for t in tokens(m.texto))
-    dominios = Counter(urlparse(u).netloc.replace("www.", "")
-                       for m in usuarios for u in URL.findall(m.texto))
-    por_tipo = Counter(m.tipo for m in mensajes)
 
     hora_pico = max(range(24), key=lambda h: por_hora[h]) if usuarios else None
     dia_pico = max(serie_dias, key=lambda x: x["mensajes"]) if serie_dias else None
     return {
         "resumen": {
-            "mensajes": len(mensajes),
-            "mensajes_usuarios": len(usuarios),
+            "mensajes": total,
+            "mensajes_usuarios": usuarios,
             "participantes": len(participantes),
             "dias_periodo": len(serie_dias),
             "dias_activos": sum(1 for x in serie_dias if x["mensajes"]),
-            "promedio_diario": round(len(usuarios) / len(serie_dias), 1) if serie_dias else 0,
-            "adjuntos": sum(1 for m in mensajes if m.adjunto),
+            "promedio_diario": round(usuarios / len(serie_dias), 1) if serie_dias else 0,
+            "adjuntos": adjuntos,
             "hora_pico": hora_pico,
             "dia_pico": dia_pico,
         },
@@ -123,6 +181,18 @@ def calcular(mensajes: list[Mensaje], respuestas: bool = True) -> dict:
         "por_dia_semana": por_dia_semana,
         "calor": calor,
         "por_tipo": dict(por_tipo.most_common()),
-        "palabras": palabras.most_common(25),
-        "dominios": dominios.most_common(10),
+        "palabras": por_lista(palabras.most_common(25)),
+        "dominios": por_lista(dominios.most_common(10)),
     }
+
+
+def por_lista(pares) -> list[list]:
+    # listas (no tuplas): así el resultado es idéntico antes y después de pasar por JSON
+    return [list(p) for p in pares]
+
+
+def calcular(mensajes: list[Mensaje], respuestas: bool = True) -> dict:
+    """Análisis completo en un solo proceso (un único bloque).
+    respuestas=False omite el tiempo de respuesta: al juntar varios chats, el mensaje
+    "siguiente" puede ser de otra conversación y la medida no tendría sentido."""
+    return combinar([parcial(mensajes, previos(mensajes) if respuestas else None)], respuestas)

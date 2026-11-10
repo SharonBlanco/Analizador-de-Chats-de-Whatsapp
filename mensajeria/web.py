@@ -15,6 +15,7 @@ Escucha solo en 127.0.0.1: los chats no salen de esta computadora.
 from __future__ import annotations
 
 import argparse
+import hmac
 import json
 import mimetypes
 import re
@@ -35,6 +36,19 @@ from whatsapp_formato import parsear_archivo  # noqa: E402
 from estadisticas import calcular as calcular_estadisticas  # noqa: E402
 from organizacion import ErrorOrganizacion, Organizacion  # noqa: E402
 
+# Procesamiento en paralelo (distribuido/). Requiere pika; sin él, la interfaz funciona
+# igual y la sección de workers explica qué falta.
+sys.path.insert(0, str(AQUI.parent / "distribuido"))
+try:
+    from comun import config as config_distribuido  # noqa: E402
+    from coordinador import ErrorTrabajo, Plataforma  # noqa: E402
+    FALTA_DISTRIBUIDO = None
+except ImportError as e:   # pragma: no cover
+    FALTA_DISTRIBUIDO = f"Falta un módulo para el procesamiento en paralelo: {e.name} (pip install pika psutil)"
+
+    class ErrorTrabajo(Exception):
+        pass
+
 INDEX = AQUI / "web" / "index.html"
 SUBIDAS = Path(tempfile.gettempdir()) / "wa_import_web"
 LOTE_VALIDO = re.compile(r"^[a-f0-9]{8,32}$")
@@ -46,6 +60,7 @@ mimetypes.add_type("image/webp", ".webp")
 
 DATASET: Path = Path("dataset_whatsapp")
 ORG: Organizacion = Organizacion(DATASET)
+PLATAFORMA = None          # coordinador.Plataforma, se crea en main()
 
 # Caché de chats parseados: {caso: (mtime_ns de chat.txt, mensajes)}.
 # El panorama general recorre todos los chats; sin caché se releería cada .txt.
@@ -64,6 +79,21 @@ def mensajes_de(carpeta: Path) -> list:
     with _cache_lock:
         _cache[carpeta.name] = (marca, mensajes)
     return mensajes
+
+
+def cargar_caso(caso: str) -> tuple[list, dict]:
+    """Para el coordinador: mensajes parseados y metadata.json de un caso."""
+    carpeta = DATASET / caso
+    if not dentro(DATASET, carpeta) or not (carpeta / "metadata.json").is_file():
+        raise ErrorTrabajo(f"El caso {caso} no existe")
+    return mensajes_de(carpeta), json.loads((carpeta / "metadata.json").read_text(encoding="utf-8"))
+
+
+def estado_plataforma() -> dict:
+    if PLATAFORMA is None:
+        return {"configurado": False, "conectado": False, "workers": [], "trabajos": [],
+                "error": FALTA_DISTRIBUIDO or "La plataforma no se inició"}
+    return PLATAFORMA.estado()
 
 
 def carpetas_de_casos() -> list[Path]:
@@ -90,7 +120,12 @@ def resumen_caso(carpeta: Path, asignaciones: dict | None = None) -> dict | None
             por_dia[x.fecha_hora[:10]] = por_dia.get(x.fecha_hora[:10], 0) + 1
     if asignaciones is None:
         asignaciones = ORG.estado()["asignaciones"]
+    # Peso del chat: el .txt más sus adjuntos (lo que ocupa en disco, sin metadata.json)
+    bytes_chat = (carpeta / "chat.txt").stat().st_size
+    bytes_adjuntos = sum(f.stat().st_size for f in carpeta.iterdir()
+                         if f.is_file() and f.name not in ("chat.txt", "metadata.json"))
     return {"caso": carpeta.name, "chat": m.get("chat"), "fuente": m.get("fuente"),
+            "bytes": bytes_chat + bytes_adjuntos, "bytes_chat": bytes_chat, "bytes_adjuntos": bytes_adjuntos,
             "mensajes": m.get("total_mensajes"), "participantes": len(m.get("participantes", [])),
             "nombres": m.get("participantes", []),
             "inicio": (m.get("periodo") or {}).get("inicio"), "fin": (m.get("periodo") or {}).get("fin"),
@@ -205,6 +240,19 @@ class Manejador(BaseHTTPRequestHandler):
             self._json({"caso": carpeta.name, "metadata": meta, "mensajes": mensajes,
                         "estadisticas": calcular_estadisticas(parseados),
                         "carpeta": ORG.carpeta_de(carpeta.name)})
+        elif partes == ["api", "plataforma"]:
+            self._json(estado_plataforma())
+        elif len(partes) == 4 and partes[:2] == ["api", "casos"] and partes[3] == "trabajos":
+            if not self._caso(partes[2]):
+                return self._error("Caso no encontrado", 404)
+            self._json(PLATAFORMA.trabajos_de(partes[2]) if PLATAFORMA else [])
+        elif len(partes) == 3 and partes[:2] == ["api", "trabajos"]:
+            if not PLATAFORMA:
+                return self._error(estado_plataforma()["error"], 503)
+            try:
+                self._json(PLATAFORMA.detalle(partes[2]))
+            except ErrorTrabajo as e:
+                self._error(str(e), 404)
         elif len(partes) == 3 and partes[0] == "media":
             carpeta = self._caso(partes[1])
             archivo = carpeta / partes[2] if carpeta else None
@@ -259,6 +307,17 @@ class Manejador(BaseHTTPRequestHandler):
                 return self._json(ORG.crear(self._leer_json().get("nombre", "")))
             if len(partes) == 4 and partes[:2] == ["api", "carpetas"] and partes[3] == "renombrar":
                 return self._json(ORG.renombrar(partes[2], self._leer_json().get("nombre", "")))
+            if len(partes) == 4 and partes[:2] == ["api", "casos"] and partes[3] == "paralelo":
+                if not PLATAFORMA:
+                    return self._error(estado_plataforma()["error"], 503)
+                if not self._caso(partes[2]):
+                    return self._error("Caso no encontrado", 404)
+                d = self._leer_json()
+                return self._json(PLATAFORMA.crear(partes[2], int(d.get("bloques") or 2), bool(d.get("adjuntos"))))
+            if len(partes) == 4 and partes[:2] == ["api", "trabajos"] and partes[3] == "cancelar":
+                if not PLATAFORMA:
+                    return self._error(estado_plataforma()["error"], 503)
+                return self._json(PLATAFORMA.cancelar(partes[2]))
             if partes == ["api", "mover"]:
                 d = self._leer_json()
                 casos = [c for c in d.get("casos") or [] if self._caso(str(c))]
@@ -266,7 +325,7 @@ class Manejador(BaseHTTPRequestHandler):
                     return self._error("No se indicaron conversaciones válidas")
                 ORG.mover(casos, d.get("carpeta") or None)
                 return self._json({"ok": True, "movidas": len(casos)})
-        except (ErrorImportacion, ErrorOrganizacion) as e:
+        except (ErrorImportacion, ErrorOrganizacion, ErrorTrabajo) as e:
             return self._error(str(e))
         except Exception as e:  # noqa: BLE001 — se muestra en la interfaz
             return self._error(f"Error interno: {type(e).__name__}: {e}", 500)
@@ -354,12 +413,44 @@ class Manejador(BaseHTTPRequestHandler):
         self._error("No existe", 404)
 
 
+class ManejadorWorkers(Manejador):
+    """Puerto aparte para los workers de otras computadoras. Solo entrega los adjuntos
+    registrados en el metadata.json de cada caso, y solo con el token compartido.
+    La interfaz (con los chats completos) sigue escuchando únicamente en 127.0.0.1."""
+    TOKEN: str = ""
+
+    def do_GET(self):
+        partes, _ = self._ruta()
+        if not hmac.compare_digest(self.headers.get("X-Token", ""), self.TOKEN):
+            return self._error("Token inválido", 401)
+        if len(partes) != 3 or partes[0] != "archivo":
+            return self._error("No existe", 404)
+        carpeta = self._caso(partes[1])
+        if not carpeta:
+            return self._error("Archivo no encontrado", 404)
+        meta = json.loads((carpeta / "metadata.json").read_text(encoding="utf-8"))
+        archivo = carpeta / partes[2]
+        if partes[2] in ("chat.txt", "metadata.json") or partes[2] not in meta.get("files", {}) \
+                or not dentro(carpeta, archivo) or not archivo.is_file():
+            return self._error("Archivo no encontrado", 404)
+        self._enviar_archivo(archivo)
+
+    def do_POST(self):
+        self._error("No existe", 404)
+
+    do_DELETE = do_POST
+
+
 def main():
-    global DATASET, ORG
+    global DATASET, ORG, PLATAFORMA
     ap = argparse.ArgumentParser(description="Interfaz web local del importador de WhatsApp")
     ap.add_argument("--puerto", type=int, default=8100)
     ap.add_argument("--salida", type=Path, default=AQUI.parent / "dataset_whatsapp",
                     help="carpeta donde quedan los casos importados")
+    ap.add_argument("--puerto-workers", type=int, default=8101,
+                    help="puerto donde los workers descargan adjuntos (requiere WORKER_TOKEN)")
+    ap.add_argument("--host-workers", default="0.0.0.0",
+                    help="interfaz del puerto de workers (0.0.0.0 = accesible desde la red)")
     a = ap.parse_args()
     DATASET = a.salida.resolve()
     DATASET.mkdir(parents=True, exist_ok=True)
@@ -367,6 +458,20 @@ def main():
     servidor = ThreadingHTTPServer(("127.0.0.1", a.puerto), Manejador)
     print(f"Importador de WhatsApp en http://localhost:{a.puerto}")
     print(f"Casos en {DATASET}   (Ctrl+C para detener)")
+
+    if FALTA_DISTRIBUIDO:
+        print(f"[plataforma] desactivada: {FALTA_DISTRIBUIDO}")
+    else:
+        PLATAFORMA = Plataforma(DATASET, cargar_caso)
+        PLATAFORMA.iniciar()
+        token = config_distribuido("WORKER_TOKEN")
+        if token:
+            ManejadorWorkers.TOKEN = token
+            srv_workers = ThreadingHTTPServer((a.host_workers, a.puerto_workers), ManejadorWorkers)
+            threading.Thread(target=srv_workers.serve_forever, daemon=True).start()
+            print(f"[plataforma] adjuntos para workers en {a.host_workers}:{a.puerto_workers} (con token)")
+        else:
+            print("[plataforma] sin WORKER_TOKEN: los workers no podrán verificar adjuntos")
     try:
         servidor.serve_forever()
     except KeyboardInterrupt:

@@ -8,6 +8,9 @@ uploads/
 results/
 worker/workspace/
 workspace/
+pruebas/
+scripts/
+worker/
 
 # Dataset generado (se recrea con scripts/generar_dataset.py) y salidas de pruebas
 dataset_prueba/
@@ -26,3 +29,6 @@ exportados/
 # Archivos de bloqueo de LibreOffice / Office
 .~lock.*
 ~$*
+
+# Credenciales del procesamiento distribuido
+distribuido/config.env
