@@ -99,3 +99,19 @@ class Planificador:
 
     def pendientes(self):
         return sum(len(cola) for cola in self.colas.values())
+
+
+def convertir_prioridad(valor: int) -> int:
+    """Convierte prioridades del sistema (1-10) a niveles M2 (1-4)."""
+    prioridad = int(valor)
+
+    if not 1 <= prioridad <= 10:
+        raise ValueError("La prioridad debe estar entre 1 y 10")
+
+    if prioridad <= 2:
+        return 1       # Baja
+    if prioridad <= 5:
+        return 2       # Media
+    if prioridad <= 8:
+        return 3       # Alta
+    return 4           # Crítica
