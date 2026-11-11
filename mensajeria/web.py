@@ -215,6 +215,9 @@ class Manejador(BaseHTTPRequestHandler):
         elif partes == ["api", "casos"]:
             org = ORG.estado()
             casos = [r for c in carpetas_de_casos() if (r := resumen_caso(c, org["asignaciones"]))]
+            riesgos = PLATAFORMA.riesgo_por_caso() if PLATAFORMA else {}
+            for r in casos:
+                r["riesgo"] = riesgos.get(r["caso"])          # None = nunca se procesó con detección
             conteo: dict[str, int] = {}
             for r in casos:
                 conteo[r["carpeta"] or SIN_CARPETA] = conteo.get(r["carpeta"] or SIN_CARPETA, 0) + 1
@@ -240,6 +243,13 @@ class Manejador(BaseHTTPRequestHandler):
             self._json({"caso": carpeta.name, "metadata": meta, "mensajes": mensajes,
                         "estadisticas": calcular_estadisticas(parseados),
                         "carpeta": ORG.carpeta_de(carpeta.name)})
+        elif partes == ["api", "hallazgos"]:
+            existentes = {c.name for c in carpetas_de_casos()}
+            datos = PLATAFORMA.hallazgos_globales() if PLATAFORMA else {"casos": {}, "hallazgos": []}
+            # sin los casos que se borraron después de procesarlos
+            datos["hallazgos"] = [h for h in datos["hallazgos"] if h["caso"] in existentes]
+            datos["casos"] = {k: v for k, v in datos["casos"].items() if k in existentes}
+            self._json(datos)
         elif partes == ["api", "plataforma"]:
             self._json(estado_plataforma())
         elif len(partes) == 4 and partes[:2] == ["api", "casos"] and partes[3] == "trabajos":

@@ -515,6 +515,34 @@ class Plataforma:
                           "rabbit": self.destino, "workers": self._workers(),
                           "trabajos": [self._resumen(t) for t in trabajos], "alertas": list(self.alertas)[:50]})
 
+    def _ultimos_con_hallazgos(self) -> dict[str, dict]:
+        """Por caso, el procesamiento terminado más reciente que tenga hallazgos calculados."""
+        ultimos: dict[str, dict] = {}
+        for tr in self.trabajos.values():
+            r = tr.get("resultado") or {}
+            if tr["estado"] in ("completed", "partially_completed") and "hallazgos" in r:
+                if tr["caso"] not in ultimos or tr["creado"] > ultimos[tr["caso"]]["creado"]:
+                    ultimos[tr["caso"]] = tr
+        return ultimos
+
+    def riesgo_por_caso(self) -> dict[str, dict]:
+        """Resumen para la lista de conversaciones: {caso: {"alta": n, "media": n, "trabajo": id}}."""
+        with self.lock:
+            return {caso: {**(tr["resultado"].get("resumen_hallazgos") or {}).get("por_severidad", {}),
+                           "trabajo": tr["id"], "terminado": _iso(tr["terminado"])}
+                    for caso, tr in self._ultimos_con_hallazgos().items()}
+
+    def hallazgos_globales(self) -> dict:
+        """Todos los hallazgos de todas las conversaciones (último procesamiento de cada una)."""
+        with self.lock:
+            hallazgos, casos = [], {}
+            for caso, tr in self._ultimos_con_hallazgos().items():
+                casos[caso] = {"chat": tr["chat"], "trabajo": tr["id"], "terminado": _iso(tr["terminado"]),
+                               "por_severidad": (tr["resultado"].get("resumen_hallazgos") or {}).get("por_severidad", {})}
+                hallazgos += [{**h, "caso": caso, "chat": tr["chat"], "trabajo": tr["id"]} for h in tr["resultado"]["hallazgos"]]
+            hallazgos.sort(key=lambda h: (h.get("fecha_hora") or "", h["caso"]), reverse=True)
+            return _json({"casos": casos, "hallazgos": hallazgos})
+
     def trabajos_de(self, caso: str) -> list[dict]:
         with self.lock:
             return _json([self._resumen(t) for t in sorted(self.trabajos.values(), key=lambda t: -t["creado"])
