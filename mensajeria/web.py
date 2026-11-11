@@ -216,8 +216,10 @@ class Manejador(BaseHTTPRequestHandler):
             org = ORG.estado()
             casos = [r for c in carpetas_de_casos() if (r := resumen_caso(c, org["asignaciones"]))]
             riesgos = PLATAFORMA.riesgo_por_caso() if PLATAFORMA else {}
+            en_curso = PLATAFORMA.en_curso_por_caso() if PLATAFORMA else {}
             for r in casos:
                 r["riesgo"] = riesgos.get(r["caso"])          # None = nunca se procesó con detección
+                r["procesando"] = en_curso.get(r["caso"])     # avance si hay un procesamiento en curso
             conteo: dict[str, int] = {}
             for r in casos:
                 conteo[r["carpeta"] or SIN_CARPETA] = conteo.get(r["carpeta"] or SIN_CARPETA, 0) + 1

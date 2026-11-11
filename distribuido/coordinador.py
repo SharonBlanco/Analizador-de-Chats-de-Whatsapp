@@ -532,6 +532,17 @@ class Plataforma:
                            "trabajo": tr["id"], "terminado": _iso(tr["terminado"])}
                     for caso, tr in self._ultimos_con_hallazgos().items()}
 
+    def en_curso_por_caso(self) -> dict[str, dict]:
+        """Procesamientos que todavía no terminan: {caso: {trabajo, terminadas, total}}."""
+        with self.lock:
+            salida = {}
+            for tr in self.trabajos.values():
+                if tr["estado"] not in FINALES_TR:
+                    sts = tr["subtareas"].values()
+                    salida[tr["caso"]] = {"trabajo": tr["id"], "estado": tr["estado"], "total": len(sts),
+                                          "terminadas": sum(st["estado"] in FINALES_ST for st in sts)}
+            return salida
+
     def hallazgos_globales(self) -> dict:
         """Todos los hallazgos de todas las conversaciones (último procesamiento de cada una)."""
         with self.lock:

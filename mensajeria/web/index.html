@@ -336,7 +336,7 @@ pre.cmd { margin: 8px 0 0; padding: 10px 12px; background: var(--agua-hielo); bo
 .nav a .cuenta.roja { color: var(--error-texto); font-weight: 700; }
 .mensaje.resaltado { background: var(--error-fondo); box-shadow: inset 3px 0 0 var(--error-texto); animation: resalte 2.5s ease-out; }
 @keyframes resalte { from { background: #F7C6C0; } to { background: var(--error-fondo); } }
-.riesgo-celda { display: flex; gap: 4px; flex-wrap: wrap; }
+.riesgo-celda { display: flex; gap: 4px; flex-wrap: nowrap; white-space: nowrap; }
 .btn-ver { margin-left: auto; }
 .hallazgo-cab .chat-link { font-weight: 700; color: var(--petroleo); }
 #tip { position: fixed; pointer-events: none; z-index: 10; background: var(--texto); color: var(--blanco);
@@ -448,7 +448,7 @@ const st = {
   casos: [], carpeta: "", caso: null, datos: null,
   seleccion: [], proceso: null,               // proceso de importación en curso / último
   filtroTipo: null, filtroAutor: "", busqueda: "", mostrando: PAGINA,
-  carpetas: [], sinCarpeta: 0, nuevaCarpeta: false, marcados: new Set(),
+  carpetas: [], sinCarpeta: 0, nuevaCarpeta: false, marcados: new Set(), avisoLote: "",
   fConv: {q: "", desde: "", hasta: ""},              // filtros de la lista de conversaciones
   fGen: {carpeta: "", desde: "", hasta: ""},         // filtros del panorama general
   general: null, genClave: "",
@@ -898,6 +898,8 @@ function vConversaciones(carpeta) {
 }
 
 function celdaRiesgo(x) {
+  if (x.procesando) return `<a href="#/caso/${encodeURIComponent(x.caso)}/paralelo" class="insignia activo" title="Ver el procesamiento">
+    Analizando ${x.procesando.terminadas}/${x.procesando.total}</a>`;
   const r = x.riesgo;
   if (!r) return `<span style="color:var(--texto-2);font-size:12.5px" title="Todavía no se procesó con los workers">sin analizar</span>`;
   if (!r.alta && !r.media) return `<span class="insignia ok">Sin hallazgos</span>`;
@@ -970,18 +972,52 @@ function renderTablaConv(carpeta) {
 function renderLote(carpeta) {
   const n = st.marcados.size, el = $("#lote");
   if (!el) return;
-  if (!n) { el.innerHTML = ""; return; }
+  if (!n) { el.innerHTML = st.avisoLote || ""; return; }
   const destino = st.carpetas.find(c => c.id !== carpeta)?.id || "";
-  el.innerHTML = `<div class="acciones-lote"><b>${n} ${n === 1 ? "seleccionada" : "seleccionadas"}</b><span>Mover a</span>
+  el.innerHTML = `<div class="acciones-lote"><b>${n} ${n === 1 ? "seleccionada" : "seleccionadas"}</b>
+    <button class="btn btn-primario btn-chico" id="btnAnalizarLote">${icono("division")}Analizar ${n === 1 ? "" : `las ${n}`}</button>
+    <label class="check-simple" style="margin:0"><input type="checkbox" id="adjLote" ${st.adjPar ? "checked" : ""}> con imágenes y audios</label>
+    <span style="width:1px;height:22px;background:var(--borde-fuerte);margin:0 4px"></span>
+    <span>Mover a</span>
     <select id="destinoLote" aria-label="Carpeta de destino">${opcionesCarpeta(destino)}</select>
-    <button class="btn btn-primario btn-chico" id="btnMoverLote">Mover</button>
-    <button class="btn btn-texto btn-chico" id="btnCancelarLote">Cancelar</button>
-    ${!st.carpetas.length ? `<span style="color:var(--texto-2)">Cree una carpeta con el botón + de la barra lateral.</span>` : ""}</div>`;
+    <button class="btn btn-chico" id="btnMoverLote">Mover</button>
+    <button class="btn btn-texto btn-chico" id="btnCancelarLote">Cancelar</button></div>${st.avisoLote || ""}`;
+  $("#adjLote").onchange = e => { st.adjPar = e.target.checked; };
+  $("#btnAnalizarLote").onclick = async () => {
+    const b = $("#btnAnalizarLote"); b.disabled = true; b.textContent = "Enviando…";
+    try {
+      const r = await analizarCasos([...st.marcados], $("#adjLote").checked);
+      st.avisoLote = `<div style="padding:10px 20px">${r.ok.length ? `<div class="aviso" style="background:var(--agua-suave);border-color:var(--agua);color:var(--petroleo)">${icono("division")}<span>
+          ${fmtN(r.ok.length)} ${r.ok.length === 1 ? "conversación enviada" : "conversaciones enviadas"} a los workers. El avance se ve en la columna Riesgo; los resultados, en <a href="#/riesgos">Riesgos</a>.
+          ${r.sinWorkers ? "<b>No hay workers conectados:</b> quedan en cola hasta que se conecte uno." : ""}</span></div>` : ""}
+        ${r.fallos.length ? `<div class="error" style="margin-top:8px">${icono("alerta")}<span>${r.fallos.map(esc).join("<br>")}</span></div>` : ""}</div>`;
+      st.marcados.clear();
+      await cargarCasos();
+    } catch (e) { st.avisoLote = `<div style="padding:10px 20px"><div class="error">${icono("alerta")}<span>${esc(e.message)}</span></div></div>`; }
+    renderTablaConv(carpeta);
+    setTimeout(() => { st.avisoLote = ""; if (!st.marcados.size) renderLote(carpeta); }, 12000);
+  };
   $("#btnMoverLote").onclick = async () => {
     try { await moverCasos([...st.marcados], $("#destinoLote").value); st.marcados.clear(); renderTablaConv(carpeta); refrescarCabeceraConv(carpeta); }
     catch (e) { alert(e.message); }
   };
   $("#btnCancelarLote").onclick = () => { st.marcados.clear(); renderTablaConv(carpeta); };
+}
+
+/** Envía cada conversación al procesamiento en paralelo (una tras otra; los workers las atienden según su prioridad). */
+async function analizarCasos(casos, adjuntos) {
+  const p = await cargarPlataforma();
+  if (!p?.configurado || !p?.conectado) throw new Error(p?.error || "No hay conexión con la plataforma de workers");
+  const activos = p.workers.filter(w => w.activo && (w.pools || []).includes("texto")).length;
+  const bloques = Math.max(2, activos);
+  const ok = [], fallos = [];
+  for (const c of casos) {
+    const x = st.casos.find(y => y.caso === c);
+    if (x?.procesando) { fallos.push(`${x.chat || c}: ya se está analizando`); continue; }
+    try { await api(`/api/casos/${encodeURIComponent(c)}/paralelo`, JSON_POST({bloques, adjuntos})); ok.push(c); }
+    catch (e) { fallos.push(`${x?.chat || c}: ${e.message}`); }
+  }
+  return {ok, fallos, sinWorkers: activos === 0};
 }
 
 async function moverCasos(casos, carpeta) {
@@ -998,6 +1034,14 @@ function refrescarCabeceraConv(carpeta) {
 
 function enlazarConversaciones(carpeta) {
   if (!$("#tablaConv")) return;
+  let firma = "";
+  sondeo = setInterval(async () => {
+    if (ruta().seccion !== "conversaciones") return parar();
+    if (!st.casos.some(c => c.procesando)) return;              // nada en curso: no hace falta refrescar
+    await cargarCasos();
+    const nueva = JSON.stringify(st.casos.map(c => [c.caso, c.procesando, c.riesgo]));
+    if (nueva !== firma) { firma = nueva; renderTablaConv(carpeta); renderNav(); }
+  }, 3000);
   let t;
   $("#fQ").oninput = e => { clearTimeout(t); t = setTimeout(() => { st.fConv.q = e.target.value; renderTablaConv(carpeta); }, 150); };
   $("#fDesde").onchange = e => { st.fConv.desde = e.target.value; renderTablaConv(carpeta); };
