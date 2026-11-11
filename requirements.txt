@@ -2,6 +2,12 @@
 pika==1.3.2
 psutil==5.9.6
 
+# Detección de agresiones en los workers (distribuido/worker/detectores.py)
+torch                # se instala con soporte CUDA si hay GPU NVIDIA
+pysentimiento        # texto: RoBERTuito hate_speech (odio, agresividad)
+ultralytics          # imágenes: YOLOv8 Open Images V7 (armas)
+faster-whisper       # audio: Whisper (voz a texto)
+
 # Descarga de OffendES desde Hugging Face (generador del dataset)
 datasets
 huggingface_hub

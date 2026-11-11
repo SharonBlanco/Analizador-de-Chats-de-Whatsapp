@@ -44,10 +44,13 @@ def config(clave: str, defecto: str | None = None) -> str | None:
 
 # ---------------------------------------------------------------- nombres de colas
 PREFIJO = config("WA_PREFIJO_COLAS", "wa.")            # separa estas colas de las del I Proyecto
-POOLS = {
-    "texto": f"{PREFIJO}tareas.texto",                  # bloques de mensajes → estadísticas parciales
-    "adjuntos": f"{PREFIJO}tareas.adjuntos",            # verificación SHA-256 y metadatos de adjuntos
+POOLS = {   # routing por tipo de contenido (B.4): cada worker elige qué colas atiende (WORKER_POOLS)
+    "texto": f"{PREFIJO}tareas.texto",                  # bloques de mensajes → estadísticas + detector de texto
+    "imagen": f"{PREFIJO}tareas.imagen",                # fotos → SHA-256 + YOLO (armas)
+    "audio": f"{PREFIJO}tareas.audio",                  # notas de voz → SHA-256 + Whisper + detector de texto
+    "adjuntos": f"{PREFIJO}tareas.adjuntos",            # videos y documentos → SHA-256 y metadatos
 }
+TIPOS_POOL = {"imagen": "imagen", "voz": "audio", "audio": "audio"}   # tipo de adjunto → pool (el resto: adjuntos)
 COLA_RESULTADOS = f"{PREFIJO}resultados"               # workers → coordinador (inicio / fin de sub-tareas)
 EXCHANGE_LATIDOS = f"{PREFIJO}latidos"                  # workers → coordinador (fanout, métricas cada 5 s)
 EXCHANGE_CONTROL = f"{PREFIJO}control"                  # coordinador → workers (fanout, cancelaciones)

@@ -1,0 +1,7 @@
+pika==1.3.2
+psutil==5.9.6
+# Detección (opcional: sin estas librerías el worker solo hace estadísticas y verificación)
+torch
+pysentimiento
+ultralytics
+faster-whisper

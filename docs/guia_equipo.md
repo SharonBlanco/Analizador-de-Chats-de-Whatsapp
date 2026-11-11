@@ -148,3 +148,5 @@ Para que esto funcione, las dos computadoras deben estar en la **misma red**, y 
 | La app dice "Sin conexión con RabbitMQ" | RabbitMQ no está corriendo (`docker ps`), o `RABBIT_HOST` o las credenciales están mal. |
 | El worker no aparece en la app de Sharon | Las computadoras no están en la misma red, o el firewall bloquea el puerto 5672. Prueben primero con la opción A. |
 | `Ya existe dataset_generado` | Agrega `--sobrescribir` al comando de `generar.py`. |
+| `pip install` falla con **"No space left on device"** aunque el disco tiene espacio | La carpeta temporal (`/tmp`) es pequeña; pasa con VS Code instalado como Flatpak. Usa una carpeta en el disco: `export TMPDIR=$HOME/.cache/pip-tmp && mkdir -p $TMPDIR` y repite el `pip install`. |
+| La descarga de PyTorch se corta siempre en el mismo paquete (`nvidia_nccl…`) | Agrega `--resume-retries 30 --timeout 120` al `pip install`. Si sigue fallando, baja ese `.whl` con `curl -C -` (la URL aparece en el error) e instálalo con `pip install archivo.whl`. |

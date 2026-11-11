@@ -18,10 +18,14 @@ esperan en la cola durable de RabbitMQ, y los duplicados (re-entregas) se ignora
 
 from __future__ import annotations
 
+import csv
 import json
 import math
 import os
+import re
 import threading
+import unicodedata
+from collections import Counter, deque
 import time
 import uuid
 from datetime import datetime
@@ -31,7 +35,8 @@ from typing import Callable
 import pika
 
 from comun import (COLA_RESULTADOS, ESPERA_REINTENTO, EXCHANGE_CONTROL, EXCHANGE_LATIDOS, MAX_REINTENTOS,
-                   PERSISTENTE, POOLS, SIN_SENAL, ConfiguracionIncompleta, config, declarar, parametros_rabbit)
+                   PERSISTENTE, POOLS, SIN_SENAL, TIPOS_POOL, ConfiguracionIncompleta, config, declarar,
+                   parametros_rabbit)
 from estadisticas import calcular, combinar, previos
 
 FINALES_ST = {"completed", "failed", "cancelled"}
@@ -46,8 +51,43 @@ SECCIONES = {   # qué partes del resultado se comparan con el análisis local
 }
 
 
+ORDEN_SEVERIDAD = {"alta": 2, "media": 1}
+# Ground truth del dataset generado (generador_dataset/generar.py): si el caso viene de ahí,
+# los hallazgos se comparan con lo que el generador insertó.
+VERDAD = Path(config("WA_VERDAD", str(Path(__file__).resolve().parent.parent / "dataset_generado" / "verdad")))
+
+
 class ErrorTrabajo(Exception):
     pass
+
+
+def _normalizar(t: str) -> list[str]:
+    t = "".join(c for c in unicodedata.normalize("NFD", t.lower()) if unicodedata.category(c) != "Mn")
+    return re.sub(r"[^\w\s]", " ", t).split()
+
+
+def wer(referencia: str, hipotesis: str) -> float | None:
+    """Tasa de error por palabra (distancia de edición entre palabras / palabras de la referencia)."""
+    r, h = _normalizar(referencia), _normalizar(hipotesis)
+    if not r:
+        return None
+    previa = list(range(len(h) + 1))
+    for i, pr in enumerate(r, 1):
+        actual = [i] + [0] * len(h)
+        for j, ph in enumerate(h, 1):
+            actual[j] = min(previa[j] + 1, actual[j - 1] + 1, previa[j - 1] + (pr != ph))
+        previa = actual
+    return round(previa[-1] / len(r), 3)
+
+
+def metricas(predichos: set, reales: set, universo: int) -> dict:
+    vp, fp, fn = len(predichos & reales), len(predichos - reales), len(reales - predichos)
+    precision = vp / (vp + fp) if vp + fp else None
+    exhaustividad = vp / (vp + fn) if vp + fn else None
+    f1 = 2 * precision * exhaustividad / (precision + exhaustividad) if precision and exhaustividad else None
+    r = lambda x: round(x, 3) if x is not None else None  # noqa: E731
+    return {"vp": vp, "fp": fp, "fn": fn, "vn": universo - vp - fp - fn, "total": universo, "reales": len(reales),
+            "precision": r(precision), "exhaustividad": r(exhaustividad), "f1": r(f1)}
 
 
 def _json(x):
@@ -67,6 +107,8 @@ class Plataforma:
         self.lock = threading.RLock()
         self.trabajos: dict[str, dict] = {}
         self.workers: dict[str, dict] = {}
+        self.alertas: deque = deque(maxlen=200)       # notificaciones asíncronas (B.4)
+        self._n_alerta = 0
         self.conectado = False
         self.configurado = True
         self.error: str | None = None
@@ -186,7 +228,8 @@ class Plataforma:
         if con_adjuntos:
             for i, (nombre, f) in enumerate(x for x in meta.get("files", {}).items() if x[0] != "chat.txt"):
                 nueva(tipo="adjunto", indice=i, archivo=nombre, sha256=f.get("sha256"),
-                      bytes=f.get("bytes"), tipo_archivo=f.get("tipo"))
+                      bytes=f.get("bytes"), tipo_archivo=f.get("tipo"),
+                      mensaje={k: f.get(k) for k in ("mensaje_id", "linea", "autor", "fecha_hora")})
 
         ahora = time.time()
         tr = {"id": f"tr-{uuid.uuid4().hex[:8]}", "caso": caso, "chat": meta.get("chat"),
@@ -222,8 +265,9 @@ class Plataforma:
                 d["previo"] = anteriores.get(m.id)        # para medir respuestas entre bloques
                 bloque.append(d)
             return POOLS["texto"], {**base, "mensajes": bloque}, tr["prioridad"]
-        return POOLS["adjuntos"], {**base, "caso": tr["caso"], "archivo": st["archivo"],
-                                   "sha256": st["sha256"], "bytes": st["bytes"]}, tr["prioridad"]
+        pool = TIPOS_POOL.get(st.get("tipo_archivo"), "adjuntos")
+        return POOLS[pool], {**base, "caso": tr["caso"], "archivo": st["archivo"], "tipo_archivo": st.get("tipo_archivo"),
+                             "sha256": st["sha256"], "bytes": st["bytes"]}, tr["prioridad"]
 
     def cancelar(self, id_: str) -> dict:
         with self.lock:
@@ -268,6 +312,12 @@ class Plataforma:
         elif evento == "fin" and msg.get("estado") == "completed":
             st.update(estado="completed", worker=worker, fin=time.time(), duracion=msg.get("duracion"),
                       resultado=msg.get("resultado"), error=None)
+            altos = [h for h in self._hallazgos_de(st) if h["severidad"] == "alta"]
+            if altos and tr["estado"] != "cancelled":
+                h = altos[0]
+                donde = f"mensaje #{h['id']}" if h["tipo"] == "texto" else f"{h['tipo']} {h['archivo']}"
+                extra = f" y {len(altos) - 1} más" if len(altos) > 1 else ""
+                self._alerta("alta", tr, f"{', '.join(sorted({d['categoria'] for d in h['detecciones']}))} en {donde}{extra}")
         elif evento == "fin":
             st["error"] = msg.get("error") or "Error desconocido"
             if msg.get("reintentable") and st["intentos"] < MAX_REINTENTOS and tr["estado"] != "cancelled":
@@ -324,6 +374,9 @@ class Plataforma:
         tr["estado"] = "completed" if ok == len(sts) else "failed" if ok == 0 else "partially_completed"
         tr["terminado"] = time.time()
         self._consolidar(tr)
+        conteo = (tr["resultado"] or {}).get("resumen_hallazgos", {}).get("por_severidad", {})
+        self._alerta("info", tr, f"procesamiento {tr['estado']}: {sum(conteo.values())} hallazgos "
+                                 f"({conteo.get('alta', 0)} de severidad alta)")
         print(f"[plataforma] {tr['id']} terminado → {tr['estado']}")
 
     def _consolidar(self, tr: dict) -> None:
@@ -332,7 +385,8 @@ class Plataforma:
         completo = len(hechos) == len(textos)
         resultado: dict = {"texto_completo": completo, "estadisticas": None, "verificacion": None}
         if hechos:
-            combinado = _json(combinar([s["resultado"] for s in hechos]))
+            # los trabajos anteriores guardaban el parcial directo; los nuevos, en "parcial"
+            combinado = _json(combinar([s["resultado"].get("parcial", s["resultado"]) for s in hechos]))
             resultado["estadisticas"] = combinado
             if completo:
                 t0 = time.perf_counter()
@@ -347,7 +401,90 @@ class Plataforma:
         adj = [s for s in tr["subtareas"].values() if s["tipo"] == "adjunto" and s["estado"] == "completed"]
         resultado["adjuntos_integros"] = sum(1 for s in adj if (s["resultado"] or {}).get("coincide"))
         resultado["adjuntos_alterados"] = sum(1 for s in adj if not (s["resultado"] or {}).get("coincide"))
+
+        hallazgos = sorted((h for s in tr["subtareas"].values() if s["estado"] == "completed"
+                            for h in self._hallazgos_de(s)), key=lambda h: (h.get("fecha_hora") or "", h.get("id") or 0))
+        resultado["hallazgos"] = hallazgos
+        resultado["resumen_hallazgos"] = {
+            "por_severidad": dict(Counter(h["severidad"] for h in hallazgos)),
+            "por_categoria": dict(Counter(d["categoria"] for h in hallazgos for d in h["detecciones"])),
+            "por_tipo": dict(Counter(h["tipo"] for h in hallazgos)),
+        }
+        resultado["deteccion"] = dict(Counter((s["resultado"] or {}).get("deteccion", {}).get("estado", "sin datos")
+                                              for s in tr["subtareas"].values()
+                                              if s["estado"] == "completed" and (s["tipo"] == "texto" or
+                                              s.get("tipo_archivo") in TIPOS_POOL)))
+        try:
+            resultado["evaluacion"] = self._evaluar(tr, hallazgos)
+        except Exception as e:  # noqa: BLE001 — la evaluación es un extra: no debe impedir cerrar el trabajo
+            resultado["evaluacion"] = {"error": f"{type(e).__name__}: {e}"}
         tr["resultado"] = resultado
+
+    # ============================================================ hallazgos, alertas y evaluación
+    @staticmethod
+    def _hallazgos_de(st: dict) -> list[dict]:
+        """Hallazgos de una sub-tarea terminada, en un formato común para texto, imagen y audio."""
+        r = st.get("resultado") or {}
+        if st["tipo"] == "texto":
+            lista = [{"tipo": "texto", **h} for h in r.get("hallazgos") or []]
+        elif r.get("detecciones"):
+            m = st.get("mensaje") or {}
+            tipo = "imagen" if st.get("tipo_archivo") == "imagen" else "audio"
+            lista = [{"tipo": tipo, "archivo": st["archivo"], "id": m.get("mensaje_id"), "linea": m.get("linea"),
+                      "autor": m.get("autor"), "fecha_hora": m.get("fecha_hora"), "detecciones": r["detecciones"],
+                      "transcripcion": (r.get("analisis") or {}).get("transcripcion")}]
+        else:
+            return []
+        for h in lista:
+            h["severidad"] = max((d["severidad"] for d in h["detecciones"]), key=lambda x: ORDEN_SEVERIDAD.get(x, 0))
+            h["worker"] = st.get("worker")
+        return lista
+
+    def _alerta(self, nivel: str, tr: dict, texto: str) -> None:
+        self._n_alerta += 1
+        self.alertas.appendleft({"n": self._n_alerta, "nivel": nivel, "hora": _iso(time.time()), "caso": tr["caso"],
+                                 "chat": tr["chat"], "trabajo": tr["id"], "texto": texto})
+        print(f"[alerta {nivel}] {tr['chat']}: {texto}")
+
+    def _verdad(self, archivo: str, caso: str) -> list[dict] | None:
+        ruta = VERDAD / archivo
+        if not ruta.exists():
+            return None
+        with open(ruta, encoding="utf-8") as f:
+            return [fila for fila in csv.DictReader(f) if fila.get("caso") == caso]
+
+    def _evaluar(self, tr: dict, hallazgos: list[dict]) -> dict | None:
+        """Compara con el ground truth del dataset generado (si el caso viene de ahí)."""
+        if not self._verdad("casos.csv", tr["caso"]):
+            return None
+        evaluacion: dict = {"fuente": str(VERDAD)}
+        if all(s["estado"] == "completed" for s in tr["subtareas"].values() if s["tipo"] == "texto"):
+            mensajes, _ = self.cargar(tr["caso"])
+            textos = {m.id for m in mensajes if m.tipo == "texto"}
+            reales = {int(f["id"]) for f in self._verdad("mensajes_etiquetados.csv", tr["caso"]) or []
+                      if f["etiqueta"] == "positivo"}
+            predichos = {h["id"] for h in hallazgos if h["tipo"] == "texto"}
+            evaluacion["texto"] = metricas(predichos & textos, reales & textos, len(textos))
+            evaluacion["texto"]["omitidos"] = sorted(reales - predichos)[:20]
+            evaluacion["texto"]["falsos"] = sorted(predichos - reales)[:20]
+        for tipo, archivo in (("imagen", "imagenes.csv"), ("audio", "audios.csv")):
+            hechos = {s["archivo"]: s for s in tr["subtareas"].values() if s["tipo"] == "adjunto"
+                      and TIPOS_POOL.get(s.get("tipo_archivo")) == tipo and s["estado"] == "completed"
+                      and (s["resultado"] or {}).get("deteccion", {}).get("estado") == "ok"}
+            filas = [f for f in self._verdad(archivo, tr["caso"]) or [] if f["archivo"] in hechos]
+            if not filas:
+                continue
+            reales = {f["archivo"] for f in filas if f["positivo"] == "True"}
+            predichos = {f["archivo"] for f in filas if hechos[f["archivo"]]["resultado"].get("detecciones")}
+            evaluacion[tipo] = metricas(predichos, reales, len(filas))
+            evaluacion[tipo]["omitidos"] = sorted(reales - predichos)[:20]
+            evaluacion[tipo]["falsos"] = sorted(predichos - reales)[:20]
+            if tipo == "audio":
+                errores = [w for f in filas if f.get("transcripcion")
+                           if (w := wer(f["transcripcion"], (hechos[f["archivo"]]["resultado"].get("analisis") or {})
+                                        .get("transcripcion", ""))) is not None]
+                evaluacion[tipo]["wer_promedio"] = round(sum(errores) / len(errores), 3) if errores else None
+        return evaluacion
 
     # ============================================================ consultas
     def _workers(self) -> list[dict]:
@@ -368,14 +505,15 @@ class Plataforma:
                 "prioridad": tr["prioridad"], "creado": _iso(tr["creado"]), "terminado": _iso(tr["terminado"]),
                 "bloques": tr["bloques"], "adjuntos": tr["adjuntos"], "total": len(sts),
                 "terminadas": sum(s["estado"] in FINALES_ST for s in sts), "por_estado": cuenta,
-                "segundos": round(fin - tr["creado"], 2)}
+                "segundos": round(fin - tr["creado"], 2),
+                "hallazgos": ((tr.get("resultado") or {}).get("resumen_hallazgos") or {}).get("por_severidad")}
 
     def estado(self) -> dict:
         with self.lock:
             trabajos = sorted(self.trabajos.values(), key=lambda t: -t["creado"])[:50]
             return _json({"configurado": self.configurado, "conectado": self.conectado, "error": self.error,
                           "rabbit": self.destino, "workers": self._workers(),
-                          "trabajos": [self._resumen(t) for t in trabajos]})
+                          "trabajos": [self._resumen(t) for t in trabajos], "alertas": list(self.alertas)[:50]})
 
     def trabajos_de(self, caso: str) -> list[dict]:
         with self.lock:

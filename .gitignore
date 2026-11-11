@@ -8,9 +8,11 @@ uploads/
 results/
 worker/workspace/
 workspace/
-pruebas/
-scripts/
-worker/
+# Carpetas del I Proyecto que siguen en esta carpeta. La "/" inicial limita la regla a la raíz:
+# sin ella, "worker/" también ignoraba distribuido/worker/ (el worker nuevo).
+/pruebas/
+/scripts/
+/worker/
 
 # Dataset generado (se recrea con scripts/generar_dataset.py) y salidas de pruebas
 dataset_prueba/
@@ -36,3 +38,6 @@ distribuido/config.env
 # Dataset: fuentes descargadas y dataset generado (se recrean con generador_dataset/)
 fuentes_dataset/
 dataset_generado/
+
+# Pesos de modelos descargados (YOLO)
+*.pt
