@@ -38,6 +38,8 @@ from comun import (COLA_RESULTADOS, ESPERA_REINTENTO, EXCHANGE_CONTROL, EXCHANGE
                    PERSISTENTE, POOLS, SIN_SENAL, TIPOS_POOL, ConfiguracionIncompleta, config, declarar,
                    parametros_rabbit)
 from estadisticas import calcular, combinar, previos
+from planificador import Planificador, Tarea, convertir_prioridad
+
 
 FINALES_ST = {"completed", "failed", "cancelled"}
 FINALES_TR = {"completed", "partially_completed", "failed", "cancelled"}
@@ -106,6 +108,11 @@ class Plataforma:
         self.dir = dataset / ".trabajos"
         self.lock = threading.RLock()
         self.trabajos: dict[str, dict] = {}
+                # M2: planificador de subtareas
+        self.planificador = Planificador(
+            politica=config("WA_POLITICA", "aging"),
+            intervalo_aging=float(config("WA_INTERVALO_AGING", "10"))
+        )
         self.workers: dict[str, dict] = {}
         self.alertas: deque = deque(maxlen=200)       # notificaciones asíncronas (B.4)
         self._n_alerta = 0
