@@ -519,14 +519,19 @@ def preparar_memoria() -> None:
     presupuesto, origen = memoria.presupuesto_mb()
     disp = detectores.dispositivo() if detectores and DETECCION else "cpu"
     texto_modelo = config("WA_TEXTO_MODELO", "1") not in ("0", "no", "false")
+    # Con Ollama el modelo de texto vive en otro proceso (el servidor de Ollama): este worker no carga
+    # pysentimiento, así que el plan no le reserva esa memoria (y le queda más para YOLO o Whisper).
+    ollama = bool(texto_modelo and detectores and DETECCION and "texto" in MIS_POOLS
+                  and detectores.motor_texto() == "ollama")
     PLAN = memoria.planificar(MIS_POOLS, presupuesto, memoria.proceso_mb().get("rss") or 60,
-                              texto_modelo=texto_modelo and detectores is not None,
+                              texto_modelo=texto_modelo and detectores is not None and not ollama,
                               whisper_preferido=detectores.tamano_whisper(disp) if detectores else "small",
                               deteccion=DETECCION and detectores is not None,
                               concurrencia_max=CONCURRENCIA, admision=ADMISION)
     PLAN["origen"] = origen
     if detectores and DETECCION:
-        detectores.configurar(texto_modelo=PLAN["texto_modelo"], whisper=PLAN["whisper"])
+        detectores.configurar(texto_modelo=PLAN["texto_modelo"] or ollama, whisper=PLAN["whisper"])
+    PLAN["texto_motor"] = "ollama" if ollama else ("pysentimiento" if PLAN["texto_modelo"] else "reglas")
     MIS_POOLS, CONCURRENCIA = PLAN["pools"], PLAN["concurrencia"]
     admision = memoria.Admision(PLAN)
     registro = memoria.Registro(DIR_TRABAJO)
