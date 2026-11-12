@@ -1096,6 +1096,8 @@ function renderLote(carpeta) {
     <span>Mover a</span>
     <select id="destinoLote" aria-label="Carpeta de destino">${opcionesCarpeta(destino)}</select>
     <button class="btn btn-chico" id="btnMoverLote">Mover</button>
+    <span style="width:1px;height:22px;background:var(--borde-fuerte);margin:0 4px"></span>
+    <button class="btn btn-texto btn-chico btn-peligro" id="btnEliminarLote">${icono("papelera")}Eliminar</button>
     <button class="btn btn-texto btn-chico" id="btnCancelarLote">Cancelar</button></div>${st.avisoLote || ""}`;
   $("#adjLote").onchange = e => { st.adjPar = e.target.checked; };
   $("#btnAnalizarLote").onclick = async () => {
@@ -1117,6 +1119,23 @@ function renderLote(carpeta) {
     catch (e) { alert(e.message); }
   };
   $("#btnCancelarLote").onclick = () => { st.marcados.clear(); renderTablaConv(carpeta); };
+  $("#btnEliminarLote").onclick = async () => {
+    const casos = [...st.marcados];
+    const nombres = casos.map(c => st.casos.find(x => x.caso === c)?.chat || c);
+    const lista = nombres.slice(0, 8).map(x => `  • ${x}`).join("\n") + (nombres.length > 8 ? `\n  … y ${nombres.length - 8} más` : "");
+    if (!confirm(`¿Eliminar ${casos.length === 1 ? "esta conversación" : `estas ${casos.length} conversaciones`}?\n\n${lista}\n\n`
+      + "Se borran el chat, sus fotos, audios y demás archivos, y sus análisis. Esta acción no se puede deshacer.")) return;
+    const b = $("#btnEliminarLote"); b.disabled = true; b.textContent = "Eliminando…";
+    const fallos = [];
+    for (const c of casos) {
+      try { await api(`/api/casos/${encodeURIComponent(c)}`, {method: "DELETE"}); st.marcados.delete(c); }
+      catch (e) { fallos.push(`${c}: ${e.message}`); }
+    }
+    await cargarCasos();
+    renderNav();
+    if (fallos.length) alert(`No se pudieron eliminar:\n${fallos.join("\n")}`);
+    renderTablaConv(carpeta); refrescarCabeceraConv(carpeta);
+  };
 }
 
 /** Envía cada conversación al procesamiento en paralelo (una tras otra; los workers las atienden según su prioridad). */
@@ -1298,12 +1317,12 @@ function cabeceraCaso(vista) {
           <select id="moverCaso" aria-label="Carpeta de la conversación">${opcionesCarpeta(st.datos.carpeta)}</select></label>
       </div>
     </div>
-    <button class="btn btn-texto btn-peligro btn-chico" id="btnBorrar">${icono("papelera")}Eliminar caso</button>
+    <button class="btn btn-texto btn-peligro btn-chico" id="btnBorrar">${icono("papelera")}Eliminar conversación</button>
   </div>`;
 }
 function enlazarCaso(vista) {
   $("#btnBorrar").onclick = async () => {
-    if (!confirm(`¿Eliminar el caso "${st.caso}" y todos sus archivos? Esta acción no se puede deshacer.`)) return;
+    if (!confirm(`¿Eliminar la conversación "${st.datos?.metadata?.chat || st.caso}"?\n\nSe borran el chat, sus archivos y sus análisis. Esta acción no se puede deshacer.`)) return;
     try {
       await api(`/api/casos/${encodeURIComponent(st.caso)}`, {method: "DELETE"});
       st.caso = null; st.datos = null; await cargarCasos(); ir("#/conversaciones");

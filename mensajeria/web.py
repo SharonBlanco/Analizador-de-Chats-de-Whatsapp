@@ -445,6 +445,8 @@ class Manejador(BaseHTTPRequestHandler):
             carpeta = self._caso(partes[2])
             if not carpeta:
                 return self._error("Caso no encontrado", 404)
+            if PLATAFORMA:                       # cancela su procesamiento y borra sus resultados
+                PLATAFORMA.olvidar_caso(carpeta.name)
             shutil.rmtree(carpeta)
             ORG.olvidar(carpeta.name)
             with _cache_lock:

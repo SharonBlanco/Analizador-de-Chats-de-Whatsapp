@@ -117,7 +117,7 @@ def configurar(texto_modelo: bool | None = None, whisper: str | None = None) -> 
 
 # ============================================================ texto
 # Reglas de amenaza (texto sin tildes y en minúscula). Cubren voseo y tuteo.
-_DANO = (r"(matar|asesinar|apunalar|acuchillar|balear|disparar|golpear|reventar|quemar|secuestrar|violar|"
+_DANO = (r"(matar|asesinar|apunalar|punalar|acuchillar|balear|disparar|golpear|reventar|quemar|secuestrar|violar|"
          r"ahorcar|degollar|desaparecer|partir la madre|partirle la madre|romper la cara|romperle la cara)")
 # usos inofensivos de esos verbos ("matar el tiempo", "matar el hambre")
 _NO_DANO = r"(?!\w*\s+(el tiempo|el rato|el hambre|la sed|el aburrimiento|la espera|los nervios))"
@@ -156,6 +156,9 @@ ILICITOS = [
     r"\b(narcotrafico|narcomenudeo|narco)\b",
     r"\b(asaltar|atracar|robar|robarle|asaltarlo|asaltarla)\b\s+(a\s+)?(una persona|alguien|un|una|el|la|ese|esa|esos|esas|ellos|ellas|la casa|el banco|la tienda|el carro)\b",
     r"\b(voy|vamos|hay que|pienso|quiero|queremos)\s+a?\s*(asaltar|atracar|robar)\b",
+    # Whisper suele transcribir "vamos a asaltar" como "vamos a saltar": nadie "salta" un local
+    r"\b(voy|vamos|van|hay que)\s+a\s+saltar\s+(a\s+)?(la|el|al|una|un|ese|esa)\s+(pulperia|banco|tienda|negocio|super|"
+    r"supermercado|farmacia|gasolinera|bomba|chino|local|licorera|casa|carro|bus|joyeria|panaderia|soda|bar)\b",
     r"\b(cobrar|cobramos|cobran|pagar|paga|pagas|pagan|pague|paguen)\s+(la\s+)?(renta|vacuna|cuota de proteccion)\b|\bextorsi",
     r"\b(mandar|mande|mandamos|pagar|pague)\s+a\s+matar\b|\bsicari",
     r"\b(vendo|vender|consigo|conseguir|comprar|compro)\b.{0,20}\b(pistola|pistolas|arma|armas|fusil|rifle|balas|municiones|nueve milimetros)\b",

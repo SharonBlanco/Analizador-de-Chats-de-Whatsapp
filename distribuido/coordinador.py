@@ -464,6 +464,23 @@ class Plataforma:
             print(f"[plataforma] no se pudo avisar la cancelación a los workers: {e}")
         return self.detalle(id_)
 
+    def olvidar_caso(self, caso: str) -> int:
+        """Al eliminar una conversación: cancela lo que tenga en curso y borra sus procesamientos
+        (así sus hallazgos dejan de aparecer en Riesgos). Devuelve cuántos trabajos se borraron."""
+        with self.lock:
+            ids = [i for i, t in self.trabajos.items() if t["caso"] == caso]
+            en_curso = [i for i in ids if self.trabajos[i]["estado"] not in FINALES_TR]
+        for i in en_curso:
+            try:
+                self.cancelar(i)
+            except ErrorTrabajo:
+                pass
+        with self.lock:
+            for i in ids:
+                self.trabajos.pop(i, None)
+                (self.dir / f"{i}.json").unlink(missing_ok=True)
+        return len(ids)
+
     # ============================================================ flujo de tareas
     def _procesar(self, msg: dict) -> str | None:
         """Aplica un mensaje de un worker. Devuelve el id del trabajo si hay que repetir

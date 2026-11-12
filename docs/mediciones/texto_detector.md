@@ -57,3 +57,16 @@ También se quitó la regla de "cuídate / ten cuidado", que marcaba frases cari
 | Mensajes del dataset generado marcados como amenaza | — | 3 de 19 813 (los 3 son comentarios ofensivos reales) |
 
 Las 11 falsas alarmas restantes son ambiguas incluso para una persona, por ejemplo citas de amenazas ("y si te mato aquí mismo") o "la mato" escrito sin tilde.
+
+## Ajuste por errores de transcripción en las notas de voz (12/11/2026)
+**Problema:** con 8 notas de voz grabadas por el equipo, el detector marcó 6. Los dos fallos vinieron de la transcripción y no del detector. Whisper (tanto small como medium) transcribió "vamos a **asaltar** la pulpería" como "vamos a **saltar** la pulpería", y "te voy a apuñalar", dicho rápido, como "te voy a **puñalar**".
+
+**Cambio:** dos reglas tolerantes a esos errores:
+- "voy / vamos / van / hay que + **saltar** + un local" (pulpería, banco, tienda, farmacia…) se marca como actividad ilícita, porque nadie "salta" un local;
+- "puñalar" se trata como variante de "apuñalar".
+
+| Prueba | Resultado |
+|---|---|
+| Las 8 notas de voz del equipo | 6 → **8** detectadas |
+| Frases parecidas inofensivas ("saltar la cuerda", "saltar al agua", "saltar la tapia") | 0 marcadas |
+| Comentarios de OffendES no ofensivos marcados por las reglas nuevas | 0 de 11 055 |
