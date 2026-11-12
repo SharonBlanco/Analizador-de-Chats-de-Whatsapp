@@ -38,6 +38,8 @@ from comun import (COLA_RESULTADOS, ESPERA_REINTENTO, EXCHANGE_CONTROL, EXCHANGE
                    PERSISTENTE, POOLS, SIN_SENAL, TIPOS_POOL, ConfiguracionIncompleta, config, declarar,
                    parametros_rabbit)
 from estadisticas import calcular, combinar, previos
+from planificador import Planificador, Tarea, convertir_prioridad
+
 
 FINALES_ST = {"completed", "failed", "cancelled"}
 FINALES_TR = {"completed", "partially_completed", "failed", "cancelled"}
@@ -106,7 +108,16 @@ class Plataforma:
         self.dir = dataset / ".trabajos"
         self.lock = threading.RLock()
         self.trabajos: dict[str, dict] = {}
+        # M2: planificador de subtareas
+        self.planificador = Planificador(
+            politica=config("WA_POLITICA", "aging"),
+            intervalo_aging=float(config("WA_INTERVALO_AGING", "10"))
+        )
         self.workers: dict[str, dict] = {}
+        # M2: subtareas publicadas que aún no han finalizado.
+        self.despachadas: set[str] = set()
+        # M2: reservas de capacidad asociadas a subtareas.
+        self.reservas: dict[str, str] = {}
         self.alertas: deque = deque(maxlen=200)       # notificaciones asíncronas (B.4)
         self._n_alerta = 0
         self.conectado = False
@@ -144,13 +155,155 @@ class Plataforma:
         try:
             canal = conexion.channel()
             declarar(canal)
+            canal.confirm_delivery()
+
             for clave, cuerpo, prioridad in mensajes:
-                canal.basic_publish(exchange=exchange, routing_key=clave,
-                                    body=json.dumps(cuerpo, ensure_ascii=False).encode(),
-                                    properties=pika.BasicProperties(delivery_mode=PERSISTENTE,
-                                                                    priority=max(1, min(10, prioridad))))
+                canal.basic_publish(
+                    exchange=exchange,
+                    routing_key=clave,
+                    body=json.dumps(cuerpo, ensure_ascii=False).encode(),
+                    properties=pika.BasicProperties(
+                        delivery_mode=PERSISTENTE,
+                        priority=max(1, min(10, prioridad))
+                    ),
+                    mandatory=True
+                )
         finally:
             conexion.close()
+
+    def _capacidad_disponible(self) -> dict[str, int]:
+        """Calcula capacidad libre por tipo de tarea.
+
+        Debe llamarse con self.lock adquirido.
+        """
+        ahora = time.time()
+        capacidad = {pool: 0 for pool in POOLS}
+        for worker in self.workers.values():
+            if ahora - worker.get("visto", 0) >= SIN_SENAL:
+                continue
+            concurrencia = max(0, int(worker.get("concurrencia", 1)))
+            ocupados = max(0, int(worker.get("en_curso", 0)))
+            libres = max(0, concurrencia - ocupados)
+
+            for pool in worker.get("pools", []):
+                if pool in capacidad:
+                    capacidad[pool] += libres
+        return capacidad
+    def _workers_disponibles(self) -> list[dict]:
+        """Devuelve la capacidad estimada de cada worker activo.
+
+        Debe llamarse con self.lock adquirido.
+        """
+        ahora = time.time()
+        disponibles = []
+        for worker_id, worker in self.workers.items():
+            if ahora - worker.get("visto", 0) >= SIN_SENAL:
+                continue
+            concurrencia = max(0, int(worker.get("concurrencia", 1)))
+            ocupados = max(0, int(worker.get("en_curso", 0)))
+            libres = max(0, concurrencia - ocupados)
+
+            if libres > 0:
+                disponibles.append({
+                    "worker": worker_id,
+                    "pools": list(worker.get("pools", [])),
+                    "libres": libres,
+                })
+        return disponibles
+
+    def _workers_con_reservas(self) -> list[dict]:
+        """Calcula capacidad conservadora considerando latidos y reservas.
+
+        Debe llamarse con self.lock adquirido.
+        """
+        ahora = time.time()
+        disponibles = []
+
+        for worker_id, worker in self.workers.items():
+            if ahora - worker.get("visto", 0) >= SIN_SENAL:
+                continue
+
+            concurrencia = max(
+                0, int(worker.get("concurrencia", 1))
+            )
+            en_curso = max(
+                0, int(worker.get("en_curso", 0))
+            )
+
+            reservadas = sum(
+                1
+                for reservado_a in self.reservas.values()
+                if reservado_a == worker_id
+            )
+
+            ocupadas = max(en_curso, reservadas)
+            libres = max(0, concurrencia - ocupadas)
+
+            if libres > 0:
+                disponibles.append({
+                    "worker": worker_id,
+                    "pools": list(worker.get("pools", [])),
+                    "libres": libres,
+                })
+
+        return disponibles
+
+    def _registrar_pendientes(
+        self,
+        tr: dict,
+        mensajes: list,
+        anteriores: dict
+    ) -> int:
+        """Registra en M2 las subtareas que todavía no se publicaron.
+
+        Debe llamarse con self.lock adquirido.
+        """
+        existentes = {
+            tarea.id
+            for cola in self.planificador.colas.values()
+            for tarea in cola
+        }
+
+        agregadas = 0
+
+        for st in tr["subtareas"].values():
+            if st["estado"] != "pendiente":
+                continue
+
+            if st.get("despachada", False):
+                continue
+
+            if st["id"] in existentes:
+                continue
+
+            datos = self._mensaje(tr, st, mensajes, anteriores)
+
+            tarea = Tarea(
+                id=st["id"],
+                prioridad=convertir_prioridad(tr["prioridad"]),
+                datos=datos
+            )
+
+            self.planificador.agregar(tarea)
+            existentes.add(st["id"])
+            agregadas += 1
+
+        return agregadas
+
+    def _despachar(self) -> bool:
+        """Selecciona y publica una subtarea pendiente de M2.
+
+        Debe llamarse con self.lock adquirido.
+        """
+        tarea = self.planificador.siguiente()
+        if tarea is None:
+            return False
+        try:
+            self._publicar([tarea.datos])
+        except Exception:
+            self.planificador.devolver(tarea)
+            raise
+        return True
 
     def _escuchar(self) -> None:
         """Hilo que consume la cola de resultados y los latidos. Se reconecta solo."""
@@ -215,13 +368,14 @@ class Plataforma:
         bloques = max(1, min(int(bloques), MAX_BLOQUES, n))
         tam = math.ceil(n / bloques)
         rangos = [(i, min(i + tam, n)) for i in range(0, n, tam)]
-
         subtareas: dict[str, dict] = {}
         def nueva(**datos):
             st = {"id": f"st-{uuid.uuid4().hex[:8]}", "estado": "pendiente", "worker": None, "intentos": 0,
+                  "despachada": False,
                   "reasignaciones": 0, "inicio": None, "fin": None, "duracion": None, "error": None,
                   "resultado": None, **datos}
             subtareas[st["id"]] = st
+
         for i, (ini, fin) in enumerate(rangos):
             nueva(tipo="texto", indice=i, ini=ini, fin=fin, mensajes=fin - ini,
                   desde=mensajes[ini].id, hasta=mensajes[fin - 1].id)
