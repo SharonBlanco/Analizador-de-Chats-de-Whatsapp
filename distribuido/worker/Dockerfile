@@ -31,7 +31,7 @@ RUN pip install --no-cache-dir torch==2.15.0 torchvision==0.29.2 --index-url htt
     && pip install --no-cache-dir -r requirements.txt
 
 COPY mensajeria/whatsapp_formato.py mensajeria/estadisticas.py ./mensajeria/
-COPY distribuido/comun.py distribuido/worker/*.py distribuido/worker/huella_modelos.json ./
+COPY distribuido/comun.py distribuido/worker/*.py distribuido/worker/huella_modelos.json distribuido/worker/contexto_ollama.md ./
 
 # Los modelos se descargan la primera vez a /tmp/modelos (compatible con --read-only --tmpfs /tmp).
 # Para no bajarlos en cada arranque, monte un volumen ahí: -v wa_modelos:/tmp/modelos

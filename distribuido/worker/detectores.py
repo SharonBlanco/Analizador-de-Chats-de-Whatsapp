@@ -23,6 +23,8 @@ Configuración (variables de entorno o distribuido/config.env):
   WA_WHISPER_PRECISION=auto         int8 | int8_float16 | float16 | float32 (auto: int8_float16 en GPU, int8 en CPU)
   WA_YOLO_MODELO=yolov8l-oiv7.pt    yolov8{n,s,m,l,x}-oiv7.pt (l: mejor F1, ver docs/mediciones/imagen_yolo.md)
   WA_TEXTO_MODELO=1                  0 = texto solo con reglas e insultos (sin modelo: ~100 veces más rápido)
+  WA_TEXTO_MOTOR=auto               auto | ollama | pysentimiento: modelo de texto (auto = Ollama si corre en el nodo)
+  OLLAMA_URL=http://localhost:11434  OLLAMA_MODELO=qwen2.5:3b  OLLAMA_LOTE=25   (contexto: contexto_ollama.md)
   WA_UMBRAL_TEXTO=0.5  WA_UMBRAL_IMAGEN=0.10
 """
 
@@ -225,11 +227,90 @@ def _modelo_odio():
     return create_analyzer(task="hate_speech", lang="es")
 
 
+# ------------------------------------------------------------ texto con Ollama (LLM local)
+# WA_TEXTO_MOTOR=auto       Ollama si está corriendo en este nodo; si no, pysentimiento (Azure, Colab)
+#               =ollama     siempre Ollama (si no responde, la detección de texto queda "no disponible")
+#               =pysentimiento  el modelo anterior (RoBERTuito), para volver atrás
+# El contexto (qué cuenta como amenaza, insulto…) está en contexto_ollama.md y se puede editar.
+OLLAMA_URL = config("OLLAMA_URL", "http://localhost:11434").rstrip("/")
+OLLAMA_MODELO = config("OLLAMA_MODELO", "qwen2.5:3b")
+OLLAMA_LOTE = int(config("OLLAMA_LOTE", "25"))          # mensajes por consulta (con contexto entre ellos)
+CONTEXTO_OLLAMA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "contexto_ollama.md")
+_CATEGORIAS_LLM = ["amenaza", "ilicito", "odio", "agresion", "insulto"]
+_ETIQUETAS = _CATEGORIAS_LLM + ["normal"]   # se le pide una etiqueta para CADA mensaje (si no, se salta algunos)
+_ESQUEMA = {"type": "object", "required": ["resultados"], "properties": {"resultados": {"type": "array", "items": {
+    "type": "object", "required": ["n", "categoria", "motivo"],
+    "properties": {"n": {"type": "integer"}, "categoria": {"type": "string", "enum": _ETIQUETAS},
+                   "motivo": {"type": "string"}}}}}}
+_ollama_ok: dict = {}
+
+
+def _pedir_ollama(ruta: str, datos: dict | None = None, timeout: float = 300):
+    import json as _json
+    import urllib.request
+    req = urllib.request.Request(OLLAMA_URL + ruta, data=_json.dumps(datos).encode() if datos else None,
+                                 headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return _json.loads(r.read())
+
+
+def motor_texto() -> str:
+    """'ollama' o 'pysentimiento', según WA_TEXTO_MOTOR y si Ollama responde (se revisa una vez)."""
+    m = config("WA_TEXTO_MOTOR", "auto").lower()
+    if m != "auto":
+        return m
+    if "disponible" not in _ollama_ok:
+        try:
+            nombres = {x["name"] for x in _pedir_ollama("/api/tags", timeout=3).get("models", [])}
+            _ollama_ok["disponible"] = OLLAMA_MODELO in nombres or f"{OLLAMA_MODELO}:latest" in nombres
+            if not _ollama_ok["disponible"]:
+                print(f"  [texto] Ollama responde pero no tiene {OLLAMA_MODELO} (ollama pull {OLLAMA_MODELO}) → pysentimiento")
+        except OSError:
+            _ollama_ok["disponible"] = False
+        print(f"  [texto] motor: {'Ollama ' + OLLAMA_MODELO if _ollama_ok['disponible'] else 'pysentimiento'}")
+    return "ollama" if _ollama_ok["disponible"] else "pysentimiento"
+
+
+def _clasificar_ollama(textos: list[str]) -> list[list[dict]]:
+    import json as _json
+    with open(CONTEXTO_OLLAMA, encoding="utf-8") as f:
+        contexto = f.read()
+    if "ollama" not in _cargas:                       # para el panel de modelos del worker
+        _cargas["ollama"] = {"modelo": OLLAMA_MODELO, "url": OLLAMA_URL, "dispositivo": "servidor Ollama"}
+    salida: list[list[dict]] = [[] for _ in textos]
+    for ini in range(0, len(textos), OLLAMA_LOTE):
+        lote = textos[ini:ini + OLLAMA_LOTE]
+        lista = "\n".join(f"{j + 1}. {t.replace(chr(10), ' ')[:600]}" for j, t in enumerate(lote))
+        try:
+            r = _pedir_ollama("/api/chat", {
+                "model": OLLAMA_MODELO, "stream": False, "format": _ESQUEMA, "keep_alive": "30m",
+                "options": {"temperature": 0},
+                "messages": [{"role": "system", "content": contexto},
+                             {"role": "user", "content": f"Mensajes:\n{lista}"}]})
+            datos = _json.loads(r["message"]["content"])
+        except (OSError, ValueError, KeyError) as e:
+            raise DeteccionNoDisponible(f"Ollama no respondió bien: {type(e).__name__}: {e}") from e
+        for x in datos.get("resultados", []):
+            j = x.get("n", 0) - 1
+            if 0 <= j < len(lote) and x.get("categoria") in _CATEGORIAS_LLM:
+                salida[ini + j].append({"categoria": x["categoria"], "puntaje": 0.9,
+                                        "motivo": f"Ollama: {str(x.get('motivo', '')).strip()[:200]}"})
+    return salida
+
+
 def analizar_textos(textos: list[str], usar_modelo: bool | None = None) -> list[list[dict]]:
     """Para cada texto, la lista de hallazgos (vacía si no hay nada).
     usar_modelo=None → según WA_TEXTO_MODELO (0 = solo reglas e insultos, sin cargar el modelo)."""
     if usar_modelo is None:
         usar_modelo = _forzado.get("texto_modelo", config("WA_TEXTO_MODELO", "1") not in ("0", "no", "false"))
+    if usar_modelo and textos and motor_texto() == "ollama":
+        # Con Ollama el modelo decide todo con el contexto de la conversación: las reglas y la lista de
+        # insultos (rígidas) no se usan. Quedan solo para los nodos sin Ollama (pysentimiento).
+        resultados = _clasificar_ollama(textos)
+        for lista in resultados:
+            for h in lista:
+                h["severidad"] = SEVERIDAD[h["categoria"]]
+        return resultados
     resultados: list[list[dict]] = [[] for _ in textos]
     for i, t in enumerate(textos):
         limpio = _sin_tildes(t)
@@ -364,7 +445,8 @@ def analizar_audio(ruta: str) -> tuple[dict, list[dict]]:
     # Whisper corta el audio en segmentos: una frase partida ("voy a matar" | "a ese mae") se analiza
     # también uniendo cada par de segmentos seguidos. Solo se agregan categorías que no aparecieron.
     ya = {h["categoria"] for h in hallazgos}
-    pares = [(a_, b_) for a_, b_ in zip(segmentos, segmentos[1:])]
+    # (con Ollama no hace falta: recibe todos los segmentos juntos y ya ve las frases partidas)
+    pares = [] if motor_texto() == "ollama" else [(a_, b_) for a_, b_ in zip(segmentos, segmentos[1:])]
     for (a_, b_), lista in zip(pares, analizar_textos([f"{a_['texto']} {b_['texto']}" for a_, b_ in pares], usar_modelo=False)):
         for h in lista:
             if h["categoria"] not in ya:

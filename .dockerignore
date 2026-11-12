@@ -7,3 +7,4 @@
 !distribuido/worker/requirements.txt
 !distribuido/worker/*.py
 !distribuido/worker/huella_modelos.json
+!distribuido/worker/contexto_ollama.md
