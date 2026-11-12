@@ -13,7 +13,9 @@ de distribuido/config.env (excluido de Git). Ver config.env.ejemplo.
 from __future__ import annotations
 
 import os
+import ssl
 from pathlib import Path
+from urllib.parse import urlparse
 
 import pika
 
@@ -67,6 +69,15 @@ class ConfiguracionIncompleta(Exception):
 
 
 def parametros_rabbit() -> pika.ConnectionParameters:
+    url = config("RABBIT_URL")
+    if url:
+        # RabbitMQ en la nube (p. ej. CloudAMQP): amqps://usuario:clave@servidor/vhost → conexión cifrada con TLS
+        p = pika.URLParameters(url)
+        if url.lower().startswith("amqps://"):
+            # verifica el certificado del servidor (pika no indica el nombre del servidor por defecto)
+            p.ssl_options = pika.SSLOptions(ssl.create_default_context(), server_hostname=p.host)
+        p.heartbeat, p.blocked_connection_timeout, p.connection_attempts, p.socket_timeout = 30, 300, 1, 15
+        return p
     usuario, clave = config("RABBIT_USER"), config("RABBIT_PASS")
     if not usuario or not clave:
         raise ConfiguracionIncompleta(
@@ -76,6 +87,15 @@ def parametros_rabbit() -> pika.ConnectionParameters:
         host=config("RABBIT_HOST", "localhost"), port=int(config("RABBIT_PORT", "5672")),
         credentials=pika.PlainCredentials(usuario, clave),
         heartbeat=30, blocked_connection_timeout=300, connection_attempts=1, socket_timeout=5)
+
+
+def destino_rabbit() -> str:
+    """Dónde está RabbitMQ, para mostrar (sin la contraseña)."""
+    url = config("RABBIT_URL")
+    if url:
+        u = urlparse(url)
+        return f"{u.hostname}:{u.port or (5671 if u.scheme == 'amqps' else 5672)}" + (" (TLS)" if u.scheme == "amqps" else "")
+    return f'{config("RABBIT_HOST", "localhost")}:{config("RABBIT_PORT", "5672")}'
 
 
 def declarar(canal) -> None:

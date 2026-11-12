@@ -36,7 +36,7 @@ import pika
 
 from comun import (COLA_RESULTADOS, ESPERA_REINTENTO, EXCHANGE_CONTROL, EXCHANGE_LATIDOS, MAX_REINTENTOS,
                    PERSISTENTE, POOLS, SIN_SENAL, TIPOS_POOL, ConfiguracionIncompleta, config, declarar,
-                   parametros_rabbit)
+                   destino_rabbit, parametros_rabbit)
 from estadisticas import calcular, combinar, previos
 from planificador import Planificador, Tarea, convertir_prioridad
 
@@ -123,7 +123,7 @@ class Plataforma:
         self.conectado = False
         self.configurado = True
         self.error: str | None = None
-        self.destino = f'{config("RABBIT_HOST", "localhost")}:{config("RABBIT_PORT", "5672")}'
+        self.destino = destino_rabbit()
         # M1: serie de memoria de cada worker (un renglón por latido) para graficar ráfagas
         self.csv_memoria = dataset / ".metricas" / "memoria_workers.csv"
         self._candado_csv = threading.Lock()
