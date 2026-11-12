@@ -15,6 +15,7 @@ Escucha solo en 127.0.0.1: los chats no salen de esta computadora.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import hmac
 import json
 import mimetypes
@@ -34,6 +35,8 @@ sys.path.insert(0, str(AQUI))
 from importar import ErrorImportacion, importar  # noqa: E402
 from whatsapp_formato import parsear_archivo  # noqa: E402
 from estadisticas import calcular as calcular_estadisticas  # noqa: E402
+from almacen import Almacen  # noqa: E402  (M3)
+from receptor import Receptor  # noqa: E402  (M3)
 from organizacion import ErrorOrganizacion, Organizacion  # noqa: E402
 import telefono  # noqa: E402  (importar desde un teléfono Android por USB)
 
@@ -385,25 +388,7 @@ class Manejador(BaseHTTPRequestHandler):
         self._json({"caso": caso.name, "resumen": resumen_caso(caso)})
 
     def _importar(self, d: dict):
-        lote = d.get("lote", "")
-        if not LOTE_VALIDO.match(lote) or not (SUBIDAS / lote).is_dir():
-            return self._error("No hay archivos subidos para importar")
-        carpeta = SUBIDAS / lote
-        try:
-            archivos = [p for p in carpeta.iterdir() if p.is_file()]
-            zips = [p for p in archivos if p.suffix.lower() == ".zip"]
-            txts = [p for p in archivos if p.suffix.lower() == ".txt"]
-            if len(zips) == 1 and len(archivos) == 1:
-                entrada, nombre_entrada = zips[0], zips[0].name
-            elif len(txts) == 1 and len(archivos) == 1:
-                entrada, nombre_entrada = txts[0], txts[0].name
-            elif zips and len(archivos) > 1:
-                raise ErrorImportacion("Suba el .zip solo, o bien el .txt con sus archivos (no ambos)")
-            else:
-                entrada, nombre_entrada = carpeta, (txts[0].name if len(txts) == 1 else carpeta.name)
-            self._ejecutar_importacion(entrada, nombre_entrada, d)
-        finally:
-            shutil.rmtree(carpeta, ignore_errors=True)
+        self._json(importar_lote(d))
 
     def _importar_telefono(self, d: dict):
         """Exporta un chat del teléfono por USB y lo importa (en segundo plano)."""
@@ -448,6 +433,7 @@ class Manejador(BaseHTTPRequestHandler):
             if PLATAFORMA:                       # cancela su procesamiento y borra sus resultados
                 PLATAFORMA.olvidar_caso(carpeta.name)
             shutil.rmtree(carpeta)
+            Almacen(DATASET).recolectar()        # M3: borra del almacén lo que ya no usa ningún caso
             ORG.olvidar(carpeta.name)
             with _cache_lock:
                 _cache.pop(carpeta.name, None)
@@ -460,17 +446,73 @@ class Manejador(BaseHTTPRequestHandler):
         self._error("No existe", 404)
 
 
+def importar_lote(d: dict) -> dict:
+    """Importa los archivos subidos a SUBIDAS/<lote> (por /api/subir o por el receptor asíncrono de M3).
+    Bloqueante: el receptor la corre en un hilo auxiliar, de a WA_IMPORTADORES a la vez."""
+    lote = d.get("lote", "")
+    if not LOTE_VALIDO.match(lote) or not (SUBIDAS / lote).is_dir():
+        raise ErrorImportacion("No hay archivos subidos para importar")
+    carpeta = SUBIDAS / lote
+    try:
+        archivos = [p for p in carpeta.iterdir() if p.is_file()]
+        zips = [p for p in archivos if p.suffix.lower() == ".zip"]
+        txts = [p for p in archivos if p.suffix.lower() == ".txt"]
+        if len(zips) == 1 and len(archivos) == 1:
+            entrada, nombre_entrada = zips[0], zips[0].name
+        elif len(txts) == 1 and len(archivos) == 1:
+            entrada, nombre_entrada = txts[0], txts[0].name
+        elif zips and len(archivos) > 1:
+            raise ErrorImportacion("Suba el .zip solo, o bien el .txt con sus archivos (no ambos)")
+        else:
+            entrada, nombre_entrada = carpeta, (txts[0].name if len(txts) == 1 else carpeta.name)
+        caso = importar(entrada, DATASET, fuente=d.get("fuente") or "manual",
+                        declaro=bool(d.get("declaro")), nombre=(d.get("nombre") or "").strip() or None,
+                        prioridad=int(d.get("prioridad") or 5), sobrescribir=bool(d.get("sobrescribir")),
+                        nombre_entrada=nombre_entrada)
+        if d.get("carpeta"):            # sin carpeta elegida, un caso reemplazado conserva la suya
+            ORG.mover([caso.name], d["carpeta"])
+        return {"caso": caso.name, "resumen": resumen_caso(caso)}
+    finally:
+        shutil.rmtree(carpeta, ignore_errors=True)
+
+
 class ManejadorWorkers(Manejador):
     """Puerto aparte para los workers de otras computadoras. Solo entrega los adjuntos
     registrados en el metadata.json de cada caso, y solo con el token compartido.
-    La interfaz (con los chats completos) sigue escuchando únicamente en 127.0.0.1."""
+    La interfaz (con los chats completos) sigue escuchando únicamente en 127.0.0.1.
+
+    M3 · Transferencia por bloques:
+      GET /manifiesto/<caso>/<archivo>?bloque=<bytes>  → tamaño, SHA-256 total y SHA-256 de cada bloque
+      GET /archivo/<caso>/<archivo>  con "Range: bytes=a-b"  → un bloque
+    HTTP/1.1 con keep-alive: el worker reutiliza una conexión TCP para todos los bloques."""
     TOKEN: str = ""
+    protocol_version = "HTTP/1.1"
+    _manifiestos: dict = {}                     # (sha256, tamaño de bloque) → hashes de los bloques
+    _candado_man = threading.Lock()
+
+    def log_message(self, fmt, *args):
+        if len(args) > 1 and str(args[1]) == "206":   # cada bloque de un archivo: no se imprime (serían cientos)
+            return
+        super().log_message(fmt, *args)
+
+    def _manifiesto(self, archivo: Path, sha: str, tam: int) -> dict:
+        clave = (sha, tam)
+        with self._candado_man:
+            hashes = self._manifiestos.get(clave)
+        if hashes is None:
+            hashes = []
+            with open(archivo, "rb") as f:
+                while bloque := f.read(tam):
+                    hashes.append(hashlib.sha256(bloque).hexdigest())
+            with self._candado_man:
+                self._manifiestos[clave] = hashes
+        return {"bytes": archivo.stat().st_size, "sha256": sha, "bloque": tam, "bloques": hashes}
 
     def do_GET(self):
-        partes, _ = self._ruta()
+        partes, qs = self._ruta()
         if not hmac.compare_digest(self.headers.get("X-Token", ""), self.TOKEN):
             return self._error("Token inválido", 401)
-        if len(partes) != 3 or partes[0] != "archivo":
+        if len(partes) != 3 or partes[0] not in ("archivo", "manifiesto"):
             return self._error("No existe", 404)
         carpeta = self._caso(partes[1])
         if not carpeta:
@@ -480,6 +522,12 @@ class ManejadorWorkers(Manejador):
         if partes[2] in ("chat.txt", "metadata.json") or partes[2] not in meta.get("files", {}) \
                 or not dentro(carpeta, archivo) or not archivo.is_file():
             return self._error("Archivo no encontrado", 404)
+        if partes[0] == "manifiesto":
+            try:
+                tam = min(64 * 2**20, max(16 * 2**10, int((qs.get("bloque") or [2**20])[0])))
+            except ValueError:
+                return self._error("Tamaño de bloque inválido")
+            return self._json(self._manifiesto(archivo, meta["files"][partes[2]].get("sha256") or "", tam))
         self._enviar_archivo(archivo)
 
     def do_POST(self):
@@ -498,6 +546,8 @@ def main():
                     help="puerto donde los workers descargan adjuntos (requiere WORKER_TOKEN)")
     ap.add_argument("--host-workers", default="0.0.0.0",
                     help="interfaz del puerto de workers (0.0.0.0 = accesible desde la red)")
+    ap.add_argument("--puerto-receptor", type=int, default=8102,
+                    help="receptor asíncrono de archivos con contrapresión (M3), solo en 127.0.0.1")
     a = ap.parse_args()
     DATASET = a.salida.resolve()
     DATASET.mkdir(parents=True, exist_ok=True)
@@ -505,6 +555,11 @@ def main():
     servidor = ThreadingHTTPServer(("127.0.0.1", a.puerto), Manejador)
     print(f"Importador de WhatsApp en http://localhost:{a.puerto}")
     print(f"Casos en {DATASET}   (Ctrl+C para detener)")
+    origenes = (f"http://localhost:{a.puerto}", f"http://127.0.0.1:{a.puerto}")
+    receptor = Receptor(SUBIDAS, importar_lote, origenes=origenes)
+    receptor.iniciar_en_hilo("127.0.0.1", a.puerto_receptor)
+    print(f"[M3] receptor asíncrono en 127.0.0.1:{a.puerto_receptor} · contrapresión «{receptor.politica}», "
+          f"cola de {receptor.cola_max}, {receptor.n_importadores} importadores")
 
     if FALTA_DISTRIBUIDO:
         print(f"[plataforma] desactivada: {FALTA_DISTRIBUIDO}")

@@ -1,0 +1,117 @@
+{
+  "archivo": "00000005-VIDEO-2026-03-22-08-50-30.avi",
+  "bytes": 445866736,
+  "servidor": "local",
+  "filas": [
+    {
+      "bloque_kb": 64,
+      "paralelas": 1,
+      "bloques": 6804,
+      "segundos_mediana": 4.84,
+      "mb_s": 87.8,
+      "mb_s_min": 86.9,
+      "mb_s_max": 97.4,
+      "repetir_si_se_dana_kb": 64,
+      "memoria_por_bloque_kb": 64
+    },
+    {
+      "bloque_kb": 256,
+      "paralelas": 1,
+      "bloques": 1701,
+      "segundos_mediana": 1.769,
+      "mb_s": 240.4,
+      "mb_s_min": 219.2,
+      "mb_s_max": 247.4,
+      "repetir_si_se_dana_kb": 256,
+      "memoria_por_bloque_kb": 256
+    },
+    {
+      "bloque_kb": 1024,
+      "paralelas": 1,
+      "bloques": 426,
+      "segundos_mediana": 1.022,
+      "mb_s": 416.2,
+      "mb_s_min": 398.6,
+      "mb_s_max": 428.2,
+      "repetir_si_se_dana_kb": 1024,
+      "memoria_por_bloque_kb": 1024
+    },
+    {
+      "bloque_kb": 4096,
+      "paralelas": 1,
+      "bloques": 107,
+      "segundos_mediana": 1.05,
+      "mb_s": 404.9,
+      "mb_s_min": 385.7,
+      "mb_s_max": 427.1,
+      "repetir_si_se_dana_kb": 4096,
+      "memoria_por_bloque_kb": 4096
+    },
+    {
+      "bloque_kb": 16384,
+      "paralelas": 1,
+      "bloques": 27,
+      "segundos_mediana": 0.878,
+      "mb_s": 484.2,
+      "mb_s_min": 481.8,
+      "mb_s_max": 490.1,
+      "repetir_si_se_dana_kb": 16384,
+      "memoria_por_bloque_kb": 16384
+    },
+    {
+      "bloque_kb": 64,
+      "paralelas": 4,
+      "bloques": 6804,
+      "segundos_mediana": 5.779,
+      "mb_s": 73.6,
+      "mb_s_min": 69.2,
+      "mb_s_max": 73.7,
+      "repetir_si_se_dana_kb": 64,
+      "memoria_por_bloque_kb": 256
+    },
+    {
+      "bloque_kb": 256,
+      "paralelas": 4,
+      "bloques": 1701,
+      "segundos_mediana": 1.9,
+      "mb_s": 223.8,
+      "mb_s_min": 209.7,
+      "mb_s_max": 253.0,
+      "repetir_si_se_dana_kb": 256,
+      "memoria_por_bloque_kb": 1024
+    },
+    {
+      "bloque_kb": 1024,
+      "paralelas": 4,
+      "bloques": 426,
+      "segundos_mediana": 0.701,
+      "mb_s": 606.4,
+      "mb_s_min": 579.0,
+      "mb_s_max": 608.8,
+      "repetir_si_se_dana_kb": 1024,
+      "memoria_por_bloque_kb": 4096
+    },
+    {
+      "bloque_kb": 4096,
+      "paralelas": 4,
+      "bloques": 107,
+      "segundos_mediana": 0.618,
+      "mb_s": 688.5,
+      "mb_s_min": 661.5,
+      "mb_s_max": 692.0,
+      "repetir_si_se_dana_kb": 4096,
+      "memoria_por_bloque_kb": 16384
+    },
+    {
+      "bloque_kb": 16384,
+      "paralelas": 4,
+      "bloques": 27,
+      "segundos_mediana": 0.672,
+      "mb_s": 632.8,
+      "mb_s_min": 606.1,
+      "mb_s_max": 651.1,
+      "repetir_si_se_dana_kb": 16384,
+      "memoria_por_bloque_kb": 65536
+    }
+  ]
+}

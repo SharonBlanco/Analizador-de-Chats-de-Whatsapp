@@ -1,0 +1,3 @@
+verificación: todo coincide
+782 adjuntos referenciados · 764 archivos únicos en el almacén
+2740.3 MB sin deduplicar → 2310.6 MB en disco (ahorro 429.7 MB, tasa de deduplicación 15.7%)

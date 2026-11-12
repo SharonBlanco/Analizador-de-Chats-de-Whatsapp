@@ -43,7 +43,9 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
+import http.client
+from concurrent.futures import ThreadPoolExecutor
 
 import pika
 
@@ -178,6 +180,112 @@ def metadatos(ruta: Path) -> dict:
     return info
 
 
+# ============================================================ M3: transferencia por bloques
+BLOQUE = int(config("WA_BLOQUE_KB", "1024")) * 1024          # tamaño de bloque (justificado en docs/modulo-M3-…)
+PARALELAS = max(1, int(config("WA_DESCARGAS_PARALELAS", "4")))  # conexiones simultáneas por archivo
+REINTENTOS_BLOQUE = 3
+
+
+class ErrorBloque(Exception):
+    pass
+
+
+def _conexion(url_base: str):
+    u = urlsplit(url_base)
+    clase = http.client.HTTPSConnection if u.scheme == "https" else http.client.HTTPConnection
+    return clase(u.hostname, u.port, timeout=30), u.path.rstrip("/")
+
+
+def _pedir(con, ruta: str, cabeceras: dict) -> tuple[int, bytes]:
+    con.request("GET", ruta, headers={"X-Token": TOKEN, **cabeceras})
+    r = con.getresponse()
+    return r.status, r.read()
+
+
+def descargar_por_bloques(sub: dict, destino: Path) -> dict:
+    """Descarga un adjunto en bloques de BLOQUE bytes con PARALELAS conexiones keep-alive:
+    1) pide el manifiesto (SHA-256 de cada bloque); 2) cada hilo pide sus bloques con HTTP Range,
+    verifica el hash del bloque (si no coincide, lo vuelve a pedir: solo ESE bloque) y lo escribe
+    en su posición con os.pwrite (reensamblado); 3) verifica el SHA-256 del archivo completo.
+    Devuelve métricas de la transferencia."""
+    ruta = f"{quote(sub['caso'])}/{quote(sub['archivo'])}"
+    con, base = _conexion(COORDINADOR_URL)
+    try:
+        estado, cuerpo = _pedir(con, f"{base}/manifiesto/{ruta}?bloque={BLOQUE}", {})
+    finally:
+        con.close()
+    if estado in (401, 403):
+        raise ErrorPermanente(f"El coordinador respondió {estado} para {sub['archivo']}")
+    if estado != 200:          # 404: coordinador sin manifiesto (o archivo inexistente: lo dirá la descarga completa)
+        raise ErrorBloque(f"manifiesto: HTTP {estado}")
+    man = json.loads(cuerpo)
+    n, tam, total = len(man["bloques"]), man["bloque"], man["bytes"]
+    reintentos = [0]
+    t0 = time.perf_counter()
+    fd = os.open(destino, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    try:
+        os.ftruncate(fd, total)                         # reserva el tamaño final: cada bloque va a su lugar
+
+        def trabajar(indices: list[int]) -> None:
+            con, base = _conexion(COORDINADOR_URL)     # una conexión keep-alive por hilo
+            try:
+                for i in indices:
+                    for intento in range(REINTENTOS_BLOQUE + 1):
+                        revisar_cancelacion(sub)
+                        a, b = i * tam, min(total, (i + 1) * tam) - 1
+                        try:
+                            estado, datos = _pedir(con, f"{base}/archivo/{ruta}", {"Range": f"bytes={a}-{b}"})
+                        except (OSError, http.client.HTTPException):
+                            con.close()
+                            con, base = _conexion(COORDINADOR_URL)
+                            estado, datos = 0, b""
+                        if estado == 206 and hashlib.sha256(datos).hexdigest() == man["bloques"][i]:
+                            os.pwrite(fd, datos, a)
+                            break
+                        reintentos[0] += 1             # bloque dañado o corte: se repite SOLO este bloque
+                    else:
+                        raise ErrorBloque(f"el bloque {i} falló {REINTENTOS_BLOQUE + 1} veces")
+            finally:
+                con.close()
+        grupos = [list(range(k, n, PARALELAS)) for k in range(min(PARALELAS, n))] or [[]]
+        with ThreadPoolExecutor(len(grupos)) as ex:
+            for f in [ex.submit(trabajar, g) for g in grupos]:
+                f.result()
+    finally:
+        os.close(fd)
+    segundos = time.perf_counter() - t0
+    calculado = memoria_sha256(destino)
+    return {"sha256_calculado": calculado, "bytes": total,
+            "transferencia": {"bloque_bytes": tam, "bloques": n, "paralelas": PARALELAS, "reintentos_bloque": reintentos[0],
+                              "segundos": round(segundos, 3), "mb_s": round(total / 2**20 / segundos, 2) if segundos else None}}
+
+
+def memoria_sha256(ruta: Path) -> str:
+    h = hashlib.sha256()
+    with open(ruta, "rb") as f:
+        while b := f.read(2**20):
+            h.update(b)
+    return h.hexdigest()
+
+
+def descargar_completo(url: str, sub: dict, destino: Path) -> tuple[str, int]:
+    """Descarga de una sola vez (versión anterior a M3); se usa si el coordinador no tiene manifiesto."""
+    h, total = hashlib.sha256(), 0
+    try:
+        pedido = urllib.request.Request(url, headers={"X-Token": TOKEN})
+        with urllib.request.urlopen(pedido, timeout=30) as r, open(destino, "wb") as f:
+            while bloque := r.read(1024 * 1024):
+                revisar_cancelacion(sub)          # cancelación real: corta la descarga
+                h.update(bloque)
+                f.write(bloque)
+                total += len(bloque)
+    except urllib.error.HTTPError as e:
+        if e.code in (401, 403, 404):
+            raise ErrorPermanente(f"El coordinador respondió {e.code} para {sub['archivo']}") from e
+        raise
+    return h.hexdigest(), total
+
+
 def procesar_adjunto(sub: dict) -> dict:
     if not TOKEN:
         raise ErrorPermanente("WORKER_TOKEN no está configurado en este worker")
@@ -185,24 +293,17 @@ def procesar_adjunto(sub: dict) -> dict:
     carpeta = DIR_TRABAJO / sub["subtarea"]
     carpeta.mkdir(parents=True, exist_ok=True)
     destino = carpeta / Path(sub["archivo"]).name
-    h, total = hashlib.sha256(), 0
     try:
-        try:
-            pedido = urllib.request.Request(url, headers={"X-Token": TOKEN})
-            with urllib.request.urlopen(pedido, timeout=30) as r, open(destino, "wb") as f:
-                while bloque := r.read(1024 * 1024):
-                    revisar_cancelacion(sub)          # cancelación real: corta la descarga
-                    h.update(bloque)
-                    f.write(bloque)
-                    total += len(bloque)
-        except urllib.error.HTTPError as e:
-            if e.code in (401, 403, 404):
-                raise ErrorPermanente(f"El coordinador respondió {e.code} para {sub['archivo']}") from e
-            raise
+        transferencia = None
+        try:   # M3: por bloques verificados (si el coordinador es de una versión sin manifiesto, de una vez)
+            r = descargar_por_bloques(sub, destino)
+            calculado, total, transferencia = r["sha256_calculado"], r["bytes"], r["transferencia"]
+        except ErrorBloque:
+            calculado, total = descargar_completo(url, sub, destino)
         esperar_demo(sub)
-        calculado = h.hexdigest()
         resultado = {"sha256_registrado": sub.get("sha256"), "sha256_calculado": calculado,
-                     "coincide": calculado == sub.get("sha256"), "bytes": total, "metadatos": metadatos(destino)}
+                     "coincide": calculado == sub.get("sha256"), "bytes": total, "metadatos": metadatos(destino),
+                     "transferencia": transferencia}
         funcion = {"imagen": "analizar_imagen", "voz": "analizar_audio", "audio": "analizar_audio"}.get(sub.get("tipo_archivo"))
         if funcion:
             revisar_cancelacion(sub)

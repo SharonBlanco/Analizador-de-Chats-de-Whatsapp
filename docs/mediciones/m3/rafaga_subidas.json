@@ -1,0 +1,2237 @@
+[
+  {
+    "politica": "ninguna",
+    "clientes": 120,
+    "cola_max": null,
+    "importadores": 2,
+    "t0": 1794498449.2425494,
+    "segundos_total": 3.26,
+    "throughput_casos_s": 36.83,
+    "ok": 120,
+    "errores": 0,
+    "respuestas_503": 0,
+    "clientes_con_503": 0,
+    "profundidad_max": 102,
+    "tiempo_cliente_s": {
+      "p50": 2.21,
+      "p95": 3.14,
+      "max": 3.25
+    },
+    "espera_en_cola_s": {
+      "p50": 1.2,
+      "max": 1.75
+    },
+    "clientes_detalle": [
+      {
+        "segundos": 2.121,
+        "subida": 0.935,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.051,
+        "subida": 0.88,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.223,
+        "subida": 1.465,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.898,
+        "subida": 0.775,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.908,
+        "subida": 1.355,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.191,
+        "subida": 1.464,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.027,
+        "subida": 0.857,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 0.754,
+        "subida": 0.392,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.198,
+        "subida": 0.965,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.294,
+        "subida": 0.573,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.948,
+        "subida": 1.369,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.351,
+        "subida": 1.006,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.161,
+        "subida": 0.942,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.915,
+        "subida": 0.778,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.503,
+        "subida": 0.635,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.788,
+        "subida": 1.287,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.917,
+        "subida": 0.799,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.314,
+        "subida": 1.007,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.087,
+        "subida": 0.909,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.867,
+        "subida": 0.766,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.237,
+        "subida": 0.963,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.015,
+        "subida": 0.853,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.713,
+        "subida": 0.713,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.572,
+        "subida": 1.152,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.649,
+        "subida": 1.182,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.999,
+        "subida": 0.84,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.81,
+        "subida": 0.752,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.76,
+        "subida": 0.733,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.047,
+        "subida": 0.897,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.992,
+        "subida": 1.365,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.712,
+        "subida": 0.721,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.14,
+        "subida": 1.449,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.681,
+        "subida": 1.213,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 0.678,
+        "subida": 0.349,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.804,
+        "subida": 1.292,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.584,
+        "subida": 0.657,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.777,
+        "subida": 1.262,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.728,
+        "subida": 0.723,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.349,
+        "subida": 1.037,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.628,
+        "subida": 1.176,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.261,
+        "subida": 0.985,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.252,
+        "subida": 1.469,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.401,
+        "subida": 1.056,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.543,
+        "subida": 0.65,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.147,
+        "subida": 0.931,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.426,
+        "subida": 1.086,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.686,
+        "subida": 0.704,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.257,
+        "subida": 0.986,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.616,
+        "subida": 0.675,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.515,
+        "subida": 1.131,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.083,
+        "subida": 1.406,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 0.606,
+        "subida": 0.323,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.815,
+        "subida": 1.269,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.505,
+        "subida": 0.6,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.389,
+        "subida": 1.068,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.63,
+        "subida": 0.69,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.76,
+        "subida": 0.732,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 0.6,
+        "subida": 0.312,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.159,
+        "subida": 1.462,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.849,
+        "subida": 0.763,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.154,
+        "subida": 0.927,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.541,
+        "subida": 0.65,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.184,
+        "subida": 1.462,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.356,
+        "subida": 0.561,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.494,
+        "subida": 1.107,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.667,
+        "subida": 1.185,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.454,
+        "subida": 0.576,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.484,
+        "subida": 1.105,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.235,
+        "subida": 1.469,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.974,
+        "subida": 0.827,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.569,
+        "subida": 0.661,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 0.816,
+        "subida": 0.504,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.607,
+        "subida": 1.181,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.065,
+        "subida": 0.554,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.536,
+        "subida": 1.111,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.761,
+        "subida": 1.264,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.867,
+        "subida": 1.338,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.231,
+        "subida": 0.981,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.926,
+        "subida": 0.808,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 0.497,
+        "subida": 0.309,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.151,
+        "subida": 0.554,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.672,
+        "subida": 0.674,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.144,
+        "subida": 1.456,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.895,
+        "subida": 1.351,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.088,
+        "subida": 0.909,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.725,
+        "subida": 1.252,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.557,
+        "subida": 1.149,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.035,
+        "subida": 1.39,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.029,
+        "subida": 1.383,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 0.971,
+        "subida": 0.516,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.376,
+        "subida": 1.047,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.778,
+        "subida": 1.261,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.115,
+        "subida": 1.425,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.656,
+        "subida": 0.691,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.741,
+        "subida": 1.253,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.696,
+        "subida": 1.236,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 0.677,
+        "subida": 0.363,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.519,
+        "subida": 0.65,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.295,
+        "subida": 0.988,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.971,
+        "subida": 1.369,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 0.496,
+        "subida": 0.304,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.215,
+        "subida": 0.553,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.935,
+        "subida": 1.357,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.114,
+        "subida": 0.917,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.858,
+        "subida": 1.319,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.47,
+        "subida": 1.099,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.123,
+        "subida": 1.449,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 0.907,
+        "subida": 0.511,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.085,
+        "subida": 1.408,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.615,
+        "subida": 0.667,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.961,
+        "subida": 0.823,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.94,
+        "subida": 0.796,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.855,
+        "subida": 1.342,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.709,
+        "subida": 1.248,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.794,
+        "subida": 0.747,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.835,
+        "subida": 1.315,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.439,
+        "subida": 1.088,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.767,
+        "subida": 0.733,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.893,
+        "subida": 0.779,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.755,
+        "subida": 1.26,
+        "rechazos": 0,
+        "estado": 200
+      }
+    ]
+  },
+  {
+    "politica": "rechazar",
+    "clientes": 120,
+    "cola_max": 4,
+    "importadores": 2,
+    "t0": 1794498453.5233867,
+    "segundos_total": 4.58,
+    "throughput_casos_s": 26.21,
+    "ok": 120,
+    "errores": 0,
+    "respuestas_503": 146,
+    "clientes_con_503": 95,
+    "profundidad_max": 4,
+    "tiempo_cliente_s": {
+      "p50": 2.43,
+      "p95": 3.65,
+      "max": 4.57
+    },
+    "espera_en_cola_s": {
+      "p50": 0.05,
+      "max": 0.35
+    },
+    "clientes_detalle": [
+      {
+        "segundos": 4.554,
+        "subida": 1.502,
+        "rechazos": 3,
+        "estado": 200
+      },
+      {
+        "segundos": 1.943,
+        "subida": 0.84,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 3.15,
+        "subida": 1.096,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 2.277,
+        "subida": 1.143,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 3.664,
+        "subida": 0.563,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 3.587,
+        "subida": 0.499,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 3.588,
+        "subida": 1.496,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 3.182,
+        "subida": 1.153,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 4.467,
+        "subida": 1.428,
+        "rechazos": 3,
+        "estado": 200
+      },
+      {
+        "segundos": 1.802,
+        "subida": 0.7,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 1.738,
+        "subida": 0.624,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 2.555,
+        "subida": 1.454,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 1.622,
+        "subida": 1.497,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.449,
+        "subida": 1.108,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.326,
+        "subida": 1.237,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 3.108,
+        "subida": 1.093,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 0.756,
+        "subida": 0.458,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.054,
+        "subida": 0.978,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 2.482,
+        "subida": 1.315,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 1.574,
+        "subida": 1.372,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.635,
+        "subida": 0.541,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 2.0,
+        "subida": 0.891,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 3.233,
+        "subida": 1.187,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 1.935,
+        "subida": 0.847,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 2.111,
+        "subida": 1.001,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 2.138,
+        "subida": 1.013,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 2.951,
+        "subida": 0.897,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 3.504,
+        "subida": 1.42,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 2.082,
+        "subida": 0.993,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 2.463,
+        "subida": 1.316,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 2.549,
+        "subida": 1.457,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 3.551,
+        "subida": 1.455,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 2.752,
+        "subida": 0.705,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 2.736,
+        "subida": 0.709,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 1.895,
+        "subida": 0.815,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 3.452,
+        "subida": 1.358,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 2.642,
+        "subida": 0.554,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 2.575,
+        "subida": 0.482,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 2.215,
+        "subida": 1.076,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 2.313,
+        "subida": 1.2,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 3.481,
+        "subida": 1.368,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 1.126,
+        "subida": 0.61,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.384,
+        "subida": 0.943,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.265,
+        "subida": 1.233,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 3.39,
+        "subida": 1.263,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 2.369,
+        "subida": 1.221,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 3.555,
+        "subida": 1.477,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 1.915,
+        "subida": 0.798,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 3.418,
+        "subida": 1.278,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 1.822,
+        "subida": 0.712,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 1.865,
+        "subida": 0.785,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 0.479,
+        "subida": 0.283,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.829,
+        "subida": 0.691,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 3.44,
+        "subida": 1.36,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 3.646,
+        "subida": 0.559,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 3.393,
+        "subida": 1.332,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 3.624,
+        "subida": 0.546,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 3.225,
+        "subida": 1.189,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 1.539,
+        "subida": 1.297,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 4.554,
+        "subida": 1.502,
+        "rechazos": 3,
+        "estado": 200
+      },
+      {
+        "segundos": 2.614,
+        "subida": 0.53,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 2.021,
+        "subida": 0.973,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 3.157,
+        "subida": 1.093,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 2.652,
+        "subida": 0.532,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 1.11,
+        "subida": 0.653,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 0.784,
+        "subida": 0.436,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.943,
+        "subida": 0.901,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 1.686,
+        "subida": 1.545,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.78,
+        "subida": 0.678,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 2.324,
+        "subida": 1.219,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 2.234,
+        "subida": 1.114,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 2.169,
+        "subida": 1.069,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 0.674,
+        "subida": 0.353,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.491,
+        "subida": 1.385,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 2.509,
+        "subida": 1.364,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 2.908,
+        "subida": 0.881,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 2.796,
+        "subida": 0.73,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 3.216,
+        "subida": 1.16,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 2.346,
+        "subida": 1.268,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 2.476,
+        "subida": 1.354,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 0.965,
+        "subida": 0.613,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.272,
+        "subida": 1.234,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 1.3,
+        "subida": 0.78,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.628,
+        "subida": 1.524,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 2.772,
+        "subida": 0.71,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 1.419,
+        "subida": 0.97,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.418,
+        "subida": 1.277,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 2.443,
+        "subida": 1.298,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 1.679,
+        "subida": 1.538,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.199,
+        "subida": 1.099,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 1.869,
+        "subida": 0.795,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 0.569,
+        "subida": 0.35,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.595,
+        "subida": 0.459,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 3.354,
+        "subida": 1.259,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 4.571,
+        "subida": 1.501,
+        "rechazos": 3,
+        "estado": 200
+      },
+      {
+        "segundos": 2.522,
+        "subida": 1.418,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 2.294,
+        "subida": 1.169,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 0.586,
+        "subida": 0.293,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.065,
+        "subida": 0.979,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 0.467,
+        "subida": 0.274,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.72,
+        "subida": 0.631,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 3.324,
+        "subida": 1.233,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 1.965,
+        "subida": 0.862,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 2.146,
+        "subida": 1.031,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 1.977,
+        "subida": 0.863,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 1.539,
+        "subida": 1.141,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.228,
+        "subida": 0.743,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 4.328,
+        "subida": 1.282,
+        "rechazos": 3,
+        "estado": 200
+      },
+      {
+        "segundos": 1.649,
+        "subida": 1.442,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.076,
+        "subida": 1.035,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 3.377,
+        "subida": 1.25,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 1.571,
+        "subida": 1.415,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.765,
+        "subida": 0.683,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 0.954,
+        "subida": 0.471,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.524,
+        "subida": 1.432,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 2.279,
+        "subida": 1.144,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 2.203,
+        "subida": 1.077,
+        "rechazos": 1,
+        "estado": 200
+      },
+      {
+        "segundos": 3.463,
+        "subida": 1.39,
+        "rechazos": 2,
+        "estado": 200
+      },
+      {
+        "segundos": 1.503,
+        "subida": 1.225,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.796,
+        "subida": 0.714,
+        "rechazos": 2,
+        "estado": 200
+      }
+    ]
+  },
+  {
+    "politica": "bloquear",
+    "clientes": 120,
+    "cola_max": 4,
+    "importadores": 2,
+    "t0": 1794498459.1239898,
+    "segundos_total": 3.45,
+    "throughput_casos_s": 34.82,
+    "ok": 120,
+    "errores": 0,
+    "respuestas_503": 0,
+    "clientes_con_503": 0,
+    "profundidad_max": 4,
+    "tiempo_cliente_s": {
+      "p50": 2.43,
+      "p95": 3.33,
+      "max": 3.44
+    },
+    "espera_en_cola_s": {
+      "p50": 1.38,
+      "max": 1.85
+    },
+    "clientes_detalle": [
+      {
+        "segundos": 2.944,
+        "subida": 1.284,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 0.821,
+        "subida": 0.491,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.095,
+        "subida": 0.832,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.846,
+        "subida": 1.248,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.297,
+        "subida": 0.969,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.606,
+        "subida": 1.142,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.21,
+        "subida": 1.465,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.912,
+        "subida": 0.765,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.194,
+        "subida": 0.855,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.173,
+        "subida": 1.428,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.1,
+        "subida": 1.396,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.464,
+        "subida": 0.575,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.678,
+        "subida": 1.18,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.866,
+        "subida": 0.735,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.334,
+        "subida": 1.524,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.176,
+        "subida": 1.456,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.054,
+        "subida": 0.537,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.428,
+        "subida": 1.55,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.863,
+        "subida": 1.258,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.293,
+        "subida": 1.509,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.103,
+        "subida": 0.842,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.959,
+        "subida": 0.772,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.175,
+        "subida": 1.415,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.138,
+        "subida": 0.839,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 0.946,
+        "subida": 0.499,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.805,
+        "subida": 0.73,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.613,
+        "subida": 1.159,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 0.771,
+        "subida": 0.469,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 0.493,
+        "subida": 0.271,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.404,
+        "subida": 1.546,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.886,
+        "subida": 0.747,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.882,
+        "subida": 1.277,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.524,
+        "subida": 1.066,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.243,
+        "subida": 0.809,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.486,
+        "subida": 1.07,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.536,
+        "subida": 1.092,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.938,
+        "subida": 0.779,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.972,
+        "subida": 0.782,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.17,
+        "subida": 0.849,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.246,
+        "subida": 0.863,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.674,
+        "subida": 0.671,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.02,
+        "subida": 1.337,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.288,
+        "subida": 0.949,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.383,
+        "subida": 1.546,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 0.672,
+        "subida": 0.438,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.716,
+        "subida": 0.7,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.623,
+        "subida": 0.63,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.951,
+        "subida": 1.292,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.329,
+        "subida": 1.518,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.547,
+        "subida": 1.093,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.909,
+        "subida": 1.285,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.571,
+        "subida": 0.602,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.983,
+        "subida": 0.783,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.39,
+        "subida": 0.552,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.113,
+        "subida": 1.406,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 0.848,
+        "subida": 0.49,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.386,
+        "subida": 0.987,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.124,
+        "subida": 1.411,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.5,
+        "subida": 1.081,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.333,
+        "subida": 0.973,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.701,
+        "subida": 1.196,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.474,
+        "subida": 1.044,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.623,
+        "subida": 0.641,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.305,
+        "subida": 1.521,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.445,
+        "subida": 1.037,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.517,
+        "subida": 0.584,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.657,
+        "subida": 0.648,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.578,
+        "subida": 1.096,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.581,
+        "subida": 0.595,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.031,
+        "subida": 1.366,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.979,
+        "subida": 1.32,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.008,
+        "subida": 1.327,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.839,
+        "subida": 0.731,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.793,
+        "subida": 0.718,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.445,
+        "subida": 1.556,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.181,
+        "subida": 0.859,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.723,
+        "subida": 1.204,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.259,
+        "subida": 0.918,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 0.968,
+        "subida": 0.525,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.956,
+        "subida": 1.297,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.153,
+        "subida": 0.528,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.121,
+        "subida": 1.407,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.029,
+        "subida": 0.795,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.055,
+        "subida": 1.384,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.377,
+        "subida": 0.982,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.687,
+        "subida": 0.685,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.365,
+        "subida": 1.524,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.663,
+        "subida": 1.16,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.07,
+        "subida": 1.387,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.358,
+        "subida": 0.979,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.767,
+        "subida": 0.705,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.74,
+        "subida": 0.716,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.66,
+        "subida": 1.164,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.219,
+        "subida": 0.895,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.774,
+        "subida": 1.197,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.721,
+        "subida": 0.697,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.759,
+        "subida": 0.717,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.311,
+        "subida": 0.578,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.262,
+        "subida": 1.483,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.053,
+        "subida": 0.804,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.221,
+        "subida": 1.485,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.798,
+        "subida": 1.21,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.891,
+        "subida": 1.271,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.925,
+        "subida": 0.751,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.185,
+        "subida": 0.526,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.577,
+        "subida": 1.105,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.469,
+        "subida": 1.056,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.27,
+        "subida": 1.488,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 0.621,
+        "subida": 0.419,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.445,
+        "subida": 1.005,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.085,
+        "subida": 1.393,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.22,
+        "subida": 1.468,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.828,
+        "subida": 0.73,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.014,
+        "subida": 0.781,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.418,
+        "subida": 1.007,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.158,
+        "subida": 1.411,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.708,
+        "subida": 1.201,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 3.135,
+        "subida": 1.405,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 1.854,
+        "subida": 0.73,
+        "rechazos": 0,
+        "estado": 200
+      },
+      {
+        "segundos": 2.824,
+        "subida": 1.218,
+        "rechazos": 0,
+        "estado": 200
+      }
+    ]
+  }
+]

@@ -38,6 +38,7 @@ from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from almacen import Almacen  # noqa: E402  (M3: almacenamiento por contenido con deduplicación)
 from whatsapp_formato import es_chat_whatsapp, parsear_archivo  # noqa: E402
 
 MAX_ZIP_BYTES = 8 * 2 ** 30          # tope de descompresión (protege contra zip bombs)
@@ -152,6 +153,8 @@ def importar(entrada: Path, salida: Path, fuente: str, declaro: bool,
         files_meta = {"chat.txt": {"tipo": "chat", "sha256": sha256(caso / "chat.txt"),
                                    "nombre_original": chat_txt.name, "mensajes": len(mensajes)}}
         faltantes = []
+        almacen = Almacen(salida)
+        dedup = {"nuevos": 0, "repetidos": 0}
         for m in mensajes:
             if not m.adjunto:
                 continue
@@ -160,9 +163,11 @@ def importar(entrada: Path, salida: Path, fuente: str, declaro: bool,
                 faltantes.append({"archivo": m.adjunto, "mensaje_id": m.id, "linea": m.linea})
                 continue
             destino = caso / Path(m.adjunto).name
-            shutil.copy2(origen, destino)
+            # M3: se guarda una sola vez en .almacen/ (por su SHA-256) y el caso recibe un enlace duro
+            sha, nuevo = almacen.agregar(origen, destino)
+            dedup["nuevos" if nuevo else "repetidos"] += 1
             files_meta[destino.name] = {
-                "tipo": m.tipo, "sha256": sha256(destino), "bytes": destino.stat().st_size,
+                "tipo": m.tipo, "sha256": sha, "bytes": destino.stat().st_size, "almacen": True,
                 "mensaje_id": m.id, "linea": m.linea, "fecha_hora": m.fecha_hora,
                 "autor": m.autor, "pie": m.texto or None,
             }
@@ -197,6 +202,7 @@ def importar(entrada: Path, salida: Path, fuente: str, declaro: bool,
         "total_mensajes": len(mensajes),
         "mensajes_por_tipo": conteo,
         "adjuntos_faltantes": faltantes,       # referenciados en el chat pero no incluidos
+        "deduplicacion": dedup,                # M3: adjuntos nuevos en el almacén / que ya estaban
         "archivos_no_referenciados": no_referenciados,
         "file_count": len(files_meta),
         "files": files_meta,
