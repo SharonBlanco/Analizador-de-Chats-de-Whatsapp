@@ -60,6 +60,22 @@ class TestPlanificador(unittest.TestCase):
             "texto"
         )
         self.assertEqual(p.pendientes(), 1)
+    
+    def test_aging_evitar_inanicion(self):
+        """Una tarea antigua debe adelantarse a críticas recientes."""
+        p = Planificador("aging", intervalo_aging=10)
+        p.agregar(Tarea("baja_antigua", 1, llegada=0))
+        for i in range(20):
+            p.agregar(
+                Tarea(
+                    f"critica_{i}",
+                    4,
+                    llegada=31 + i
+                )
+            )
+        seleccionada = p.siguiente(ahora=60)
+        self.assertEqual(seleccionada.id, "baja_antigua")
+
 
 
 if __name__ == "__main__":
