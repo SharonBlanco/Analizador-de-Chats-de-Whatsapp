@@ -76,6 +76,64 @@ class TestPlanificador(unittest.TestCase):
         seleccionada = p.siguiente(ahora=60)
         self.assertEqual(seleccionada.id, "baja_antigua")
 
+    def test_worker_multipool_no_duplica_capacidad(self):
+        """Una plaza compartida no debe contarse dos veces."""
+        import time
+        from pathlib import Path
+        sys.path.insert(
+            0, str(Path(__file__).resolve().parents[2] / "mensajeria")
+        )
+        from coordinador import Plataforma
+        plataforma = Plataforma(Path("."), lambda caso: ([], {}))
+        plataforma.workers["worker-1"] = {
+            "worker": "worker-1",
+            "pools": ["texto", "imagen"],
+            "concurrencia": 1,
+            "en_curso": 0,
+            "visto": time.time(),
+        }
+        disponibles = plataforma._workers_disponibles()
+        self.assertEqual(len(disponibles), 1)
+        self.assertEqual(disponibles[0]["libres"], 1)
+        self.assertEqual(
+            set(disponibles[0]["pools"]),
+            {"texto", "imagen"}
+        )
+
+    def test_reserva_reduce_capacidad(self):
+        """Una reserva consume una plaza compartida."""
+        import time
+        from pathlib import Path
+
+        sys.path.insert(
+            0, str(Path(__file__).resolve().parents[2] / "mensajeria")
+        )
+        from coordinador import Plataforma
+        plataforma = Plataforma(Path("."), lambda caso: ([], {}))
+
+        plataforma.workers["worker-1"] = {
+            "worker": "worker-1",
+            "pools": ["texto", "imagen"],
+            "concurrencia": 1,
+            "en_curso": 0,
+            "visto": time.time(),
+        }
+
+        # Antes de reservar, hay una plaza disponible.
+        disponibles = plataforma._workers_con_reservas()
+        self.assertEqual(len(disponibles), 1)
+        self.assertEqual(disponibles[0]["libres"], 1)
+        # Reservamos la plaza para una subtarea.
+        plataforma.reservas["st-001"] = "worker-1"
+        # La plaza ya no debe estar disponible.
+        disponibles = plataforma._workers_con_reservas()
+        self.assertEqual(disponibles, [])
+        # Al liberar la reserva, vuelve a estar disponible.
+        del plataforma.reservas["st-001"]
+        disponibles = plataforma._workers_con_reservas()
+        self.assertEqual(len(disponibles), 1)
+        self.assertEqual(disponibles[0]["libres"], 1)
+
 
 
 if __name__ == "__main__":

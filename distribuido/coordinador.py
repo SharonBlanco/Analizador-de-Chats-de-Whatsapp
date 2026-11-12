@@ -108,7 +108,7 @@ class Plataforma:
         self.dir = dataset / ".trabajos"
         self.lock = threading.RLock()
         self.trabajos: dict[str, dict] = {}
-                # M2: planificador de subtareas
+        # M2: planificador de subtareas
         self.planificador = Planificador(
             politica=config("WA_POLITICA", "aging"),
             intervalo_aging=float(config("WA_INTERVALO_AGING", "10"))
@@ -116,6 +116,8 @@ class Plataforma:
         self.workers: dict[str, dict] = {}
         # M2: subtareas publicadas que aún no han finalizado.
         self.despachadas: set[str] = set()
+        # M2: reservas de capacidad asociadas a subtareas.
+        self.reservas: dict[str, str] = {}
         self.alertas: deque = deque(maxlen=200)       # notificaciones asíncronas (B.4)
         self._n_alerta = 0
         self.conectado = False
@@ -208,6 +210,19 @@ class Plataforma:
                     "libres": libres,
                 })
         return disponibles
+    def _workers_con_reservas(self) -> list[dict]:
+        """Calcula plazas libres descontando reservas de M2.
+
+        Debe llamarse con self.lock adquirido.
+        """
+        disponibles = self._workers_disponibles()
+        for worker in disponibles:
+            reservadas = sum(
+                1 for worker_id in self.reservas.values()
+                if worker_id == worker["worker"]
+            )
+            worker["libres"] = max(0, worker["libres"] - reservadas)
+        return [worker for worker in disponibles if worker["libres"] > 0]
 
     def _despachar(self) -> bool:
         """Selecciona y publica una subtarea pendiente de M2.
