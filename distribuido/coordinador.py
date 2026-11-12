@@ -159,6 +159,46 @@ class Plataforma:
         finally:
             conexion.close()
 
+    def _capacidad_disponible(self) -> dict[str, int]:
+        """Calcula capacidad libre por tipo de tarea.
+
+        Debe llamarse con self.lock adquirido.
+        """
+        ahora = time.time()
+        capacidad = {pool: 0 for pool in POOLS}
+        for worker in self.workers.values():
+            if ahora - worker.get("visto", 0) >= SIN_SENAL:
+                continue
+            concurrencia = max(0, int(worker.get("concurrencia", 1)))
+            ocupados = max(0, int(worker.get("en_curso", 0)))
+            libres = max(0, concurrencia - ocupados)
+
+            for pool in worker.get("pools", []):
+                if pool in capacidad:
+                    capacidad[pool] += libres
+        return capacidad
+    def _workers_disponibles(self) -> list[dict]:
+        """Devuelve la capacidad estimada de cada worker activo.
+
+        Debe llamarse con self.lock adquirido.
+        """
+        ahora = time.time()
+        disponibles = []
+        for worker_id, worker in self.workers.items():
+            if ahora - worker.get("visto", 0) >= SIN_SENAL:
+                continue
+            concurrencia = max(0, int(worker.get("concurrencia", 1)))
+            ocupados = max(0, int(worker.get("en_curso", 0)))
+            libres = max(0, concurrencia - ocupados)
+
+            if libres > 0:
+                disponibles.append({
+                    "worker": worker_id,
+                    "pools": list(worker.get("pools", [])),
+                    "libres": libres,
+                })
+        return disponibles
+
     def _despachar(self) -> bool:
         """Selecciona y publica una subtarea pendiente de M2.
 
@@ -170,7 +210,7 @@ class Plataforma:
         try:
             self._publicar([tarea.datos])
         except Exception:
-            self.planificador.agregar(tarea)
+            self.planificador.devolver(tarea)
             raise
         return True
 

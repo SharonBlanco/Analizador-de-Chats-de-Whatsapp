@@ -60,29 +60,31 @@ class Planificador:
         aumentos = int(espera / self.intervalo_aging)
 
         return min(4, tarea.prioridad + aumentos)
-
-    def siguiente(self, ahora=None):
+    def siguiente(self, ahora=None, pools=None):
+        """Selecciona una tarea según la política y los pools disponibles."""
         if ahora is None:
             ahora = time.monotonic()
-
         pendientes = [
             tarea
             for cola in self.colas.values()
             for tarea in cola
         ]
-
+        if pools is not None:
+            permitidos = set(pools)
+            pendientes = [
+                tarea for tarea in pendientes
+                if tarea.datos is not None
+                and tarea.datos[0] in permitidos
+            ]
         if not pendientes:
             return None
-
         if self.politica == "fifo":
             elegida = min(pendientes, key=lambda t: t.orden)
-
         elif self.politica == "prioridad":
             elegida = min(
                 pendientes,
                 key=lambda t: (-t.prioridad, t.orden)
             )
-
         else:
             elegida = min(
                 pendientes,
@@ -91,7 +93,6 @@ class Planificador:
                     t.orden
                 )
             )
-
         self.colas[elegida.prioridad].remove(elegida)
         return elegida
 
