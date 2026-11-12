@@ -343,6 +343,12 @@ class Manejador(BaseHTTPRequestHandler):
                     return self._error("Caso no encontrado", 404)
                 d = self._leer_json()
                 return self._json(PLATAFORMA.crear(partes[2], int(d.get("bloques") or 2), bool(d.get("adjuntos"))))
+            if partes == ["api", "plataforma", "reiniciar"]:
+                if not PLATAFORMA:
+                    return self._error(estado_plataforma()["error"], 503)
+                if (self._leer_json() or {}).get("confirmar") != "REINICIAR":
+                    return self._error("Falta la confirmación")
+                return self._json(PLATAFORMA.reiniciar())
             if partes in (["api", "trabajos", "cancelar_todos"], ["api", "trabajos", "reanudar_todos"]):
                 if not PLATAFORMA:
                     return self._error(estado_plataforma()["error"], 503)

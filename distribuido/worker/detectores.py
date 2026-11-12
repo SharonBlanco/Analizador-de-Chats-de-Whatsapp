@@ -235,13 +235,18 @@ def _modelo_odio():
 OLLAMA_URL = config("OLLAMA_URL", "http://localhost:11434").rstrip("/")
 OLLAMA_MODELO = config("OLLAMA_MODELO", "qwen2.5:3b")
 OLLAMA_LOTE = int(config("OLLAMA_LOTE", "25"))          # mensajes por consulta (con contexto entre ellos)
+# cuánto queda cargado el modelo sin uso: el servidor de Ollama ocupa varios GB de RAM mientras lo tiene cargado
+OLLAMA_MANTENER = config("OLLAMA_MANTENER", "3m")
 CONTEXTO_OLLAMA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "contexto_ollama.md")
 _CATEGORIAS_LLM = ["amenaza", "ilicito", "odio", "agresion", "insulto"]
 _ETIQUETAS = _CATEGORIAS_LLM + ["normal"]   # se le pide una etiqueta para CADA mensaje (si no, se salta algunos)
 _ESQUEMA = {"type": "object", "required": ["resultados"], "properties": {"resultados": {"type": "array", "items": {
-    "type": "object", "required": ["n", "categoria", "motivo"],
-    "properties": {"n": {"type": "integer"}, "categoria": {"type": "string", "enum": _ETIQUETAS},
-                   "motivo": {"type": "string"}}}}}}
+    # el motivo va ANTES de la categoría: el modelo escribe primero qué dice el mensaje y después decide
+    # (con la categoría primero, a veces elegía una y luego justificaba "desconexión de internet")
+    "type": "object", "required": ["n", "motivo", "categoria", "severidad"],
+    "properties": {"n": {"type": "integer"}, "motivo": {"type": "string"},
+                   "categoria": {"type": "string", "enum": _ETIQUETAS},
+                   "severidad": {"type": "string", "enum": ["alta", "media", "ninguna"]}}}}}}
 _ollama_ok: dict = {}
 
 
@@ -283,7 +288,7 @@ def _clasificar_ollama(textos: list[str]) -> list[list[dict]]:
         lista = "\n".join(f"{j + 1}. {t.replace(chr(10), ' ')[:600]}" for j, t in enumerate(lote))
         try:
             r = _pedir_ollama("/api/chat", {
-                "model": OLLAMA_MODELO, "stream": False, "format": _ESQUEMA, "keep_alive": "30m",
+                "model": OLLAMA_MODELO, "stream": False, "format": _ESQUEMA, "keep_alive": OLLAMA_MANTENER,
                 "options": {"temperature": 0},
                 "messages": [{"role": "system", "content": contexto},
                              {"role": "user", "content": f"Mensajes:\n{lista}"}]})
@@ -293,7 +298,14 @@ def _clasificar_ollama(textos: list[str]) -> list[list[dict]]:
         for x in datos.get("resultados", []):
             j = x.get("n", 0) - 1
             if 0 <= j < len(lote) and x.get("categoria") in _CATEGORIAS_LLM:
-                salida[ini + j].append({"categoria": x["categoria"], "puntaje": 0.9,
+                # Severidad (criterio del equipo): ilícito siempre alta; odio, agresión e insulto siempre media
+                # (machismo, ciberbullying, maltrato verbal). Solo en las amenazas decide el modelo: alta si hay
+                # riesgo físico (muerte, golpiza, extorsión), media si no ("le voy a contar a tu mamá").
+                # (El modelo 3B no es consistente si se le deja decidir en todas las categorías.)
+                sev = SEVERIDAD[x["categoria"]]
+                if x["categoria"] == "amenaza" and x.get("severidad") == "media":
+                    sev = "media"
+                salida[ini + j].append({"categoria": x["categoria"], "severidad": sev, "puntaje": 0.9,
                                         "motivo": f"Ollama: {str(x.get('motivo', '')).strip()[:200]}"})
     return salida
 
@@ -306,11 +318,7 @@ def analizar_textos(textos: list[str], usar_modelo: bool | None = None) -> list[
     if usar_modelo and textos and motor_texto() == "ollama":
         # Con Ollama el modelo decide todo con el contexto de la conversación: las reglas y la lista de
         # insultos (rígidas) no se usan. Quedan solo para los nodos sin Ollama (pysentimiento).
-        resultados = _clasificar_ollama(textos)
-        for lista in resultados:
-            for h in lista:
-                h["severidad"] = SEVERIDAD[h["categoria"]]
-        return resultados
+        return _clasificar_ollama(textos)       # cada hallazgo ya trae la severidad que eligió el modelo
     resultados: list[list[dict]] = [[] for _ in textos]
     for i, t in enumerate(textos):
         limpio = _sin_tildes(t)

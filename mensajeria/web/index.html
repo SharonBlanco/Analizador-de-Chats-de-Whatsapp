@@ -1709,7 +1709,8 @@ document.addEventListener("click", e => {
 /* ================================================================ Workers */
 function vWorkers() {
   return `<div class="cabecera"><div><h1>Workers</h1>
-    <p class="subtitulo">Computadoras conectadas que procesan las conversaciones en paralelo. Se comunican por RabbitMQ; cada una envía un latido cada 5 s.</p></div></div>
+    <p class="subtitulo">Computadoras conectadas que procesan las conversaciones en paralelo. Se comunican por RabbitMQ; cada una envía un latido cada 5 s.</p></div>
+    <button class="btn btn-texto btn-chico btn-peligro" id="btnReiniciarPlat" title="Cancela todo, vacía RabbitMQ y guarda el historial en un respaldo (no se borra nada)">${icono("cerrar")}Reiniciar procesamiento</button></div>
     <div id="workersCuerpo">${cuerpoWorkers()}</div>`;
 }
 function cuerpoWorkers() {
@@ -1753,6 +1754,28 @@ document.addEventListener("click", async e => {
     if (r.errores?.length) alert(`Reanudados: ${r.reanudados}\nNo se pudieron reanudar:\n${r.errores.join("\n")}`);
     await cargarPlataforma(); pintar($("#workersCuerpo"), cuerpoWorkers());
   } catch (err) { alert(err.message); b.disabled = false; }
+});
+document.addEventListener("click", async e => {
+  const b = e.target.closest("#btnReiniciarPlat");
+  if (!b) return;
+  const texto = prompt(
+    "REINICIAR EL PROCESAMIENTO\n\n" +
+    "• Se cancelan los procesamientos en curso y se vacían las colas de RabbitMQ.\n" +
+    "• El historial (trabajos, resultados, contadores de workers y métricas) NO se borra: se mueve a " +
+    "dataset_whatsapp/.respaldos/<fecha-hora>/ y se puede devolver.\n" +
+    "• Las conversaciones importadas no se tocan. Los workers siguen conectados.\n" +
+    "• Los hallazgos dejan de verse hasta volver a analizar.\n\n" +
+    "Para confirmar, escriba REINICIAR:");
+  if (texto === null) return;
+  if (texto.trim().toUpperCase() !== "REINICIAR") { alert("No se reinició: la confirmación no coincide."); return; }
+  b.disabled = true;
+  try {
+    const r = await api("/api/plataforma/reiniciar", JSON_POST({confirmar: "REINICIAR"}));
+    alert(`Listo.\n${r.trabajos_movidos} procesamientos guardados en:\n${r.respaldo}\n${r.mensajes_borrados} mensajes pendientes borrados de RabbitMQ.`);
+    await cargarCasos(); renderNav();
+    await cargarPlataforma(); pintar($("#workersCuerpo"), cuerpoWorkers());
+  } catch (err) { alert(err.message); }
+  b.disabled = false;
 });
 function enlazarWorkers() {
   const refrescar = async () => { await cargarPlataforma(); pintar($("#workersCuerpo"), cuerpoWorkers()); };

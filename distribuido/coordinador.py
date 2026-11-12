@@ -23,6 +23,7 @@ import json
 import math
 import os
 import re
+import shutil
 import threading
 import unicodedata
 from collections import Counter, deque
@@ -661,6 +662,57 @@ class Plataforma:
             except ErrorTrabajo as e:
                 errores.append(f"{i}: {e}")
         return {"reanudados": hechos, "errores": errores}
+
+    def reiniciar(self) -> dict:
+        """Empieza de cero SIN borrar nada:
+          1. avisa a los workers que cancelen lo que estén procesando;
+          2. vacía las colas de RabbitMQ (sub-tareas pendientes y resultados viejos);
+          3. MUEVE .trabajos/ y .metricas/ a .respaldos/<fecha-hora>/ (se pueden devolver con mv);
+          4. limpia la memoria del coordinador (trabajos, registro de workers, alertas, planificador).
+        Los workers siguen conectados y reaparecen con sus contadores en 0 en el siguiente latido."""
+        with self.lock:
+            en_curso = [i for i, t in self.trabajos.items() if t["estado"] not in FINALES_TR]
+        if en_curso:
+            try:
+                self._publicar([("", {"cancelar": i}, 10) for i in en_curso], exchange=EXCHANGE_CONTROL)
+            except Exception as e:  # noqa: BLE001
+                print(f"[plataforma] reinicio: no se pudo avisar la cancelación: {e}")
+        purgados: dict[str, int] = {}
+        with self._candado_pub:
+            try:
+                if not self._pub.get("canal") or self._pub["canal"].is_closed or self._pub["con"].is_closed:
+                    self._cerrar_pub()
+                    con = pika.BlockingConnection(parametros_rabbit())
+                    canal = con.channel()
+                    declarar(canal)
+                    canal.confirm_delivery()
+                    self._pub.update(con=con, canal=canal)
+                for cola in [*POOLS.values(), COLA_RESULTADOS]:
+                    purgados[cola] = self._pub["canal"].queue_purge(cola).method.message_count
+            except (pika.exceptions.AMQPError, OSError) as e:
+                self._cerrar_pub()
+                raise ErrorTrabajo(f"No se pudieron vaciar las colas de RabbitMQ: {type(e).__name__}: {e}") from e
+        with self.lock:
+            respaldo = self.dir.parent / ".respaldos" / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            respaldo.mkdir(parents=True, exist_ok=True)
+            with self._candado_csv:
+                for carpeta in (self.dir, self.archivo_registro.parent):
+                    if carpeta.exists():
+                        shutil.move(str(carpeta), str(respaldo / carpeta.name))
+            self.dir.mkdir(parents=True, exist_ok=True)
+            n = len(self.trabajos)
+            self.trabajos.clear()
+            self.registro.clear()
+            self.alertas.clear()
+            self.despachadas.clear()
+            self.reservas.clear()
+            self.planificador = Planificador(politica=config("WA_POLITICA", "aging"),
+                                             intervalo_aging=float(config("WA_INTERVALO_AGING", "10")))
+            for w in self.workers.values():       # los vivos siguen, pero su historial empieza en 0
+                w.pop("oom", None)
+        print(f"[plataforma] REINICIO: {n} trabajos movidos a {respaldo}; colas vaciadas: {purgados}")
+        return {"trabajos_movidos": n, "respaldo": str(respaldo), "mensajes_borrados": sum(purgados.values()),
+                "colas": purgados}
 
     # ============================================================ flujo de tareas
     def _procesar(self, msg: dict) -> str | None:
