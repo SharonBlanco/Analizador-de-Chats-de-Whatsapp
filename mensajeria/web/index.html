@@ -1789,6 +1789,13 @@ function renderParDinamico() {
     if (!confirm("¿Cancelar el procesamiento? Los workers abortan lo que estén haciendo y liberan sus archivos temporales.")) return;
     try { st.trabajo = await api(`/api/trabajos/${st.trabajo.id}/cancelar`, {method: "POST"}); renderParDinamico(); } catch (e) { alert(e.message); }
   };
+  const rr = $("#btnReanudarTr");
+  if (rr) rr.onclick = async () => {
+    const pendientes = (st.trabajo.subtareas || []).filter(s => s.estado === "cancelled" || s.estado === "failed").length;
+    if (!confirm(`¿Reanudar el procesamiento? Vuelven a la cola ${pendientes} sub-tarea(s) canceladas o fallidas; lo que ya terminó bien se conserva.`)) return;
+    rr.disabled = true;
+    try { st.trabajo = await api(`/api/trabajos/${st.trabajo.id}/reanudar`, {method: "POST"}); renderParDinamico(); } catch (e) { alert(e.message); rr.disabled = false; }
+  };
   pintar($("#parHistorial"), st.trabajosCaso.length > 1 ? `<section class="panel tabla-scroll"><div class="panel-cab" style="padding-bottom:12px"><div>
     <h2>Historial</h2><p class="panel-desc">Procesamientos anteriores de esta conversación</p></div></div>${tablaTrabajos(st.trabajosCaso, false)}</section>` : "");
 }
@@ -1812,7 +1819,8 @@ function cuerpoTrabajo(t) {
     <div class="panel-cab" style="align-items:center;padding-bottom:16px"><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
       <h2>Procesamiento</h2><span class="mono">${esc(t.id)}</span>${insignia(t.estado)}
       <span class="ayuda" style="margin:0">Prioridad ${t.prioridad} · ${fmtFechaHora(t.creado)}</span></div>
-      ${FINAL_TR.has(t.estado) ? "" : `<button class="btn btn-texto btn-chico btn-peligro" id="btnCancelarTr">Cancelar</button>`}</div>
+      ${!FINAL_TR.has(t.estado) ? `<button class="btn btn-texto btn-chico btn-peligro" id="btnCancelarTr">Cancelar</button>`
+        : t.estado !== "completed" ? `<button class="btn btn-primario btn-chico" id="btnReanudarTr" title="Vuelve a encolar solo las sub-tareas canceladas o fallidas; lo ya terminado se conserva">${icono("division")}Reanudar</button>` : ""}</div>
     <div style="padding:0 20px 16px"><div class="barra-celda"><div class="progreso" style="flex:1"><div style="width:${100 * t.terminadas / Math.max(1, t.total)}%"></div></div>
       <span class="num" style="font-size:12.5px;color:var(--texto-2)">${t.terminadas} de ${t.total} sub-tareas</span></div></div>
     <div class="kpis" style="border-top:1px solid var(--borde);grid-template-columns:repeat(5,1fr)">

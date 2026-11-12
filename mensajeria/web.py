@@ -347,6 +347,10 @@ class Manejador(BaseHTTPRequestHandler):
                 if not PLATAFORMA:
                     return self._error(estado_plataforma()["error"], 503)
                 return self._json(PLATAFORMA.cancelar(partes[2]))
+            if len(partes) == 4 and partes[:2] == ["api", "trabajos"] and partes[3] == "reanudar":
+                if not PLATAFORMA:
+                    return self._error(estado_plataforma()["error"], 503)
+                return self._json(PLATAFORMA.reanudar(partes[2]))
             if partes == ["api", "mover"]:
                 d = self._leer_json()
                 casos = [c for c in d.get("casos") or [] if self._caso(str(c))]

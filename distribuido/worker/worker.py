@@ -420,6 +420,9 @@ def al_control(_canal, _metodo, _props, cuerpo) -> None:
     if orden.get("cancelar"):
         cancelados.add(orden["cancelar"])
         print(f"  [■] Trabajo {orden['cancelar']} cancelado por el coordinador")
+    if orden.get("reanudar"):
+        cancelados.discard(orden["reanudar"])
+        print(f"  [▶] Trabajo {orden['reanudar']} reanudado por el coordinador")
 
 
 def consumir() -> None:
