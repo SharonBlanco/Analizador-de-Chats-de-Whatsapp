@@ -210,19 +210,85 @@ class Plataforma:
                     "libres": libres,
                 })
         return disponibles
+
     def _workers_con_reservas(self) -> list[dict]:
-        """Calcula plazas libres descontando reservas de M2.
+        """Calcula capacidad conservadora considerando latidos y reservas.
 
         Debe llamarse con self.lock adquirido.
         """
-        disponibles = self._workers_disponibles()
-        for worker in disponibles:
-            reservadas = sum(
-                1 for worker_id in self.reservas.values()
-                if worker_id == worker["worker"]
+        ahora = time.time()
+        disponibles = []
+
+        for worker_id, worker in self.workers.items():
+            if ahora - worker.get("visto", 0) >= SIN_SENAL:
+                continue
+
+            concurrencia = max(
+                0, int(worker.get("concurrencia", 1))
             )
-            worker["libres"] = max(0, worker["libres"] - reservadas)
-        return [worker for worker in disponibles if worker["libres"] > 0]
+            en_curso = max(
+                0, int(worker.get("en_curso", 0))
+            )
+
+            reservadas = sum(
+                1
+                for reservado_a in self.reservas.values()
+                if reservado_a == worker_id
+            )
+
+            ocupadas = max(en_curso, reservadas)
+            libres = max(0, concurrencia - ocupadas)
+
+            if libres > 0:
+                disponibles.append({
+                    "worker": worker_id,
+                    "pools": list(worker.get("pools", [])),
+                    "libres": libres,
+                })
+
+        return disponibles
+
+    def _registrar_pendientes(
+        self,
+        tr: dict,
+        mensajes: list,
+        anteriores: dict
+    ) -> int:
+        """Registra en M2 las subtareas que todavía no se publicaron.
+
+        Debe llamarse con self.lock adquirido.
+        """
+        existentes = {
+            tarea.id
+            for cola in self.planificador.colas.values()
+            for tarea in cola
+        }
+
+        agregadas = 0
+
+        for st in tr["subtareas"].values():
+            if st["estado"] != "pendiente":
+                continue
+
+            if st.get("despachada", False):
+                continue
+
+            if st["id"] in existentes:
+                continue
+
+            datos = self._mensaje(tr, st, mensajes, anteriores)
+
+            tarea = Tarea(
+                id=st["id"],
+                prioridad=convertir_prioridad(tr["prioridad"]),
+                datos=datos
+            )
+
+            self.planificador.agregar(tarea)
+            existentes.add(st["id"])
+            agregadas += 1
+
+        return agregadas
 
     def _despachar(self) -> bool:
         """Selecciona y publica una subtarea pendiente de M2.

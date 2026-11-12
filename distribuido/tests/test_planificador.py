@@ -134,6 +134,115 @@ class TestPlanificador(unittest.TestCase):
         self.assertEqual(len(disponibles), 1)
         self.assertEqual(disponibles[0]["libres"], 1)
 
+    def test_reserva_no_duplica_tarea_en_ejecucion(self):
+        """Una tarea iniciada no debe descontar capacidad dos veces."""
+        import time
+        from pathlib import Path
+        sys.path.insert(
+            0, str(Path(__file__).resolve().parents[2] / "mensajeria")
+        )
+        from coordinador import Plataforma
+        plataforma = Plataforma(Path("."), lambda caso: ([], {}))
+        plataforma.workers["worker-1"] = {
+            "worker": "worker-1",
+            "pools": ["texto", "imagen"],
+            "concurrencia": 2,
+            "en_curso": 1,
+            "visto": time.time(),
+        }
+        plataforma.trabajos["tr-001"] = {
+            "id": "tr-001",
+            "subtareas": {
+                "st-001": {
+                    "id": "st-001",
+                    "estado": "procesando",
+                    "worker": "worker-1",
+                }
+            },
+        }
+        plataforma.reservas["st-001"] = "worker-1"
+
+        disponibles = plataforma._workers_con_reservas()
+
+        self.assertEqual(len(disponibles), 1)
+        self.assertEqual(disponibles[0]["libres"], 1)
+
+    def test_reserva_con_latido_atrasado(self):
+        """No liberar una plaza si el latido aún no refleja la tarea."""
+        import time
+        from pathlib import Path
+
+        sys.path.insert(
+            0, str(Path(__file__).resolve().parents[2] / "mensajeria")
+        )
+        from coordinador import Plataforma
+        plataforma = Plataforma(Path("."), lambda caso: ([], {}))
+
+        plataforma.workers["worker-1"] = {
+            "worker": "worker-1",
+            "pools": ["texto", "imagen"],
+            "concurrencia": 1,
+            "en_curso": 0,
+            "visto": time.time(),
+        }
+
+        plataforma.trabajos["tr-001"] = {
+            "id": "tr-001",
+            "subtareas": {
+                "st-001": {
+                    "id": "st-001",
+                    "estado": "procesando",
+                    "worker": "worker-1",
+                }
+            },
+        }
+
+        plataforma.reservas["st-001"] = "worker-1"
+
+        disponibles = plataforma._workers_con_reservas()
+
+        self.assertEqual(disponibles, [])
+
+    def test_registrar_pendientes_sin_duplicados(self):
+        """Registrar una subtarea dos veces no debe duplicarla."""
+        from pathlib import Path
+        import sys
+
+        sys.path.insert(
+            0, str(Path(__file__).resolve().parents[2] / "mensajeria")
+        )
+        from coordinador import Plataforma
+
+        plataforma = Plataforma(Path("."), lambda caso: ([], {}))
+
+        trabajo = {
+            "id": "tr-001",
+            "prioridad": 5,
+            "subtareas": {
+                "st-001": {
+                    "id": "st-001",
+                    "tipo": "texto",
+                    "estado": "pendiente",
+                    "despachada": False,
+                    "ini": 0,
+                    "fin": 0,
+                }
+            },
+        }
+
+        agregadas = plataforma._registrar_pendientes(
+            trabajo, [], {}
+        )
+
+        self.assertEqual(agregadas, 1)
+        self.assertEqual(plataforma.planificador.pendientes(), 1)
+
+        agregadas = plataforma._registrar_pendientes(
+            trabajo, [], {}
+        )
+
+        self.assertEqual(agregadas, 0)
+        self.assertEqual(plataforma.planificador.pendientes(), 1)
 
 
 if __name__ == "__main__":
