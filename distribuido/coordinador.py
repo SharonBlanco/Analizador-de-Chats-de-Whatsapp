@@ -33,6 +33,7 @@ from pathlib import Path
 from typing import Callable
 
 import pika
+import pika.exceptions
 
 from comun import (COLA_RESULTADOS, ESPERA_REINTENTO, EXCHANGE_CONTROL, EXCHANGE_LATIDOS, MAX_REINTENTOS,
                    PERSISTENTE, POOLS, SIN_SENAL, TIPOS_POOL, ConfiguracionIncompleta, config, declarar,
@@ -114,6 +115,8 @@ class Plataforma:
             intervalo_aging=float(config("WA_INTERVALO_AGING", "10"))
         )
         self.workers: dict[str, dict] = {}
+        self._pub: dict = {"con": None, "canal": None}   # conexión de publicación reutilizada
+        self._candado_pub = threading.Lock()
         # Registro permanente de workers (no se borra al desconectarse): qué procesó cada uno
         self.archivo_registro = dataset / ".metricas" / "workers.json"
         self.registro: dict[str, dict] = {}
@@ -212,27 +215,46 @@ class Plataforma:
 
     # ============================================================ RabbitMQ
     def _publicar(self, mensajes: list[tuple[str, dict, int]], exchange: str = "") -> None:
-        """Publica [(routing_key, cuerpo, prioridad)] con una conexión propia (pika no es
-        thread-safe, y esto se llama desde los hilos HTTP y desde los temporizadores)."""
-        conexion = pika.BlockingConnection(parametros_rabbit())
-        try:
-            canal = conexion.channel()
-            declarar(canal)
-            canal.confirm_delivery()
+        """Publica [(routing_key, cuerpo, prioridad)] por UNA conexión que se reutiliza.
+        Antes se abría una conexión por cada publicación: con muchos reintentos a la vez se llegaba al
+        límite de conexiones del RabbitMQ en la nube (CloudAMQP gratis: 40) y los re-encolados fallaban.
+        pika no es thread-safe y esto se llama desde los hilos HTTP y los temporizadores: un candado
+        serializa el uso de la conexión. Si se cayó, se reconecta una vez y se reintenta."""
+        with self._candado_pub:
+            for intento in (1, 2):
+                try:
+                    if not self._pub.get("canal") or self._pub["canal"].is_closed or self._pub["con"].is_closed:
+                        self._cerrar_pub()
+                        con = pika.BlockingConnection(parametros_rabbit())
+                        canal = con.channel()
+                        declarar(canal)
+                        canal.confirm_delivery()
+                        self._pub.update(con=con, canal=canal)
+                    canal = self._pub["canal"]
+                    for clave, cuerpo, prioridad in mensajes:
+                        canal.basic_publish(
+                            exchange=exchange,
+                            routing_key=clave,
+                            body=json.dumps(cuerpo, ensure_ascii=False).encode(),
+                            properties=pika.BasicProperties(
+                                delivery_mode=PERSISTENTE,
+                                priority=max(1, min(10, prioridad))
+                            ),
+                            mandatory=True
+                        )
+                    return
+                except (pika.exceptions.AMQPError, OSError):
+                    self._cerrar_pub()
+                    if intento == 2:
+                        raise
 
-            for clave, cuerpo, prioridad in mensajes:
-                canal.basic_publish(
-                    exchange=exchange,
-                    routing_key=clave,
-                    body=json.dumps(cuerpo, ensure_ascii=False).encode(),
-                    properties=pika.BasicProperties(
-                        delivery_mode=PERSISTENTE,
-                        priority=max(1, min(10, prioridad))
-                    ),
-                    mandatory=True
-                )
-        finally:
-            conexion.close()
+    def _cerrar_pub(self) -> None:
+        try:
+            if self._pub.get("con") and self._pub["con"].is_open:
+                self._pub["con"].close()
+        except Exception:  # noqa: BLE001
+            pass
+        self._pub.update(con=None, canal=None)
 
     def _capacidad_disponible(self) -> dict[str, int]:
         """Calcula capacidad libre por tipo de tarea.
