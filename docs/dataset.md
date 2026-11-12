@@ -71,11 +71,24 @@ Las cifras exactas de cada ejecución, como positivos por categoría, tamaño to
 
 `linea` es la línea del `.txt` donde empieza el mensaje, e `id` es su número de orden. Son los mismos valores que asigna el parser de la plataforma, así que los hallazgos del análisis se comparan directamente con el ground truth. Los mensajes que no figuran en `mensajes_etiquetados.csv` son sintéticos y, por construcción, **negativos**.
 
-## 5. Pendientes del equipo
+## 5. Estado de las fuentes y cifras finales
 
-- [x] **OffendES** descargado (30 416 comentarios: train 16 710, validation 100, test 13 606; 4 818 ofensivos `OFP`/`OFG`).
-- [ ] Solicitar **HatEval** y colocarlo en `fuentes_dataset/texto/hateval/`. Agrega las categorías *odio* y *odio_agresivo*; OffendES solo aporta *ofensivo*.
-- [ ] Descargar los videos: `python generador_dataset/descargar_fuentes.py --solo videos` (~2,2 GB).
-- [ ] Grabar las 15 frases de `guion_grabaciones.csv` (al menos 2 integrantes) y colocarlas en `fuentes_dataset/grabaciones/` con ese mismo CSV como `grabaciones.csv`.
-- [ ] Registrar en `bitacora_ia.md` el uso de IA para las plantillas y los positivos sintéticos.
-- [ ] Copiar aquí las cifras finales de `resumen.json` una vez regenerado con todas las fuentes.
+- **OffendES:** descargado (30 416 comentarios: train 16 710, validation 100, test 13 606; 4 818 ofensivos `OFP`/`OFG`).
+- **HatEval:** no se usa. OffendES cubre la categoría *ofensivo*, y el detector de odio (pysentimiento) ya está entrenado con HatEval, así que no se evalúa con sus mismos datos.
+- **Videos:** descargados (Big Buck Bunny, Elephants Dream, Sintel y Tears of Steel, con licencia CC BY).
+- **Grabaciones del equipo:** 8 notas de voz con amenazas, actividad ilícita e insultos, en `fuentes_dataset/grabaciones/` con su `grabaciones.csv`.
+- **Uso de IA** en las plantillas y los positivos sintéticos: registrado en `docs/bitacora_ia.md` (entrada 4).
+
+**Cifras finales** (`dataset_generado/verdad/resumen.json`, semilla 2026):
+
+| Requisito B.3 | Valor | Cumple |
+|---|---|---|
+| Casos | 40 (29 Android 12 h, 2 Android 24 h, 9 iOS) | ✅ |
+| Casos heterogéneos | ≥ 10 | ✅ |
+| Mensajes de participantes | 20 400 (832 positivos y 408 negativos de datasets etiquetados) | ✅ |
+| Imágenes | 300 (60 con armas) | ✅ |
+| Audios | 158 (8 con agresiones: las grabaciones del equipo) | ✅ |
+| Casos pesados con video (≥ 200 MB) | 5 | ✅ |
+| Documentos | 7 | — |
+| Tamaño total | 2,68 GB | — |
+| Ground truth | `dataset_generado/verdad/` | ✅ |

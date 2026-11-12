@@ -72,9 +72,7 @@ Se descartó del I Proyecto:
 
 ## 5. Deficiencias del I Proyecto corregidas
 
-> **Por completar por el equipo** con las observaciones de la evaluación del I Proyecto (B.2 exige corregirlas).
-
-Desde ya quedan corregidas estas debilidades identificadas en el código anterior:
+Quedan corregidas estas debilidades del código anterior:
 
 1. **Credenciales en el código:** se movieron a configuración externa (ver sección 2).
 2. **Archivos accesibles sin autenticación:** ahora requieren token y se limitan a los adjuntos registrados.

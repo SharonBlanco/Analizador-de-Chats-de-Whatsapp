@@ -42,8 +42,8 @@ La plataforma importa conversaciones exportadas de WhatsApp (texto, fotos y nota
 | **M1 · Gestión de memoria** | Implementado y medido: límite con cgroups v2, huella por modelo, control de admisión, detección de OOM con reencolado y comparación entre procesos, fork con copy-on-write e hilos. | [docs/modulo-M1-memoria.md](docs/modulo-M1-memoria.md), `distribuido/worker/memoria.py`, `distribuido/worker/supervisor.py`, `distribuido/m1/` |
 | **M2 · Planificación** | Planificador con 4 niveles de prioridad y políticas FIFO, prioridad y aging (`WA_POLITICA`), con pruebas unitarias. | `distribuido/planificador.py`, `distribuido/tests/` |
 | **M3 · E/S y almacenamiento** | Implementado y medido: almacén por contenido (SHA-256) con deduplicación por enlaces duros, transferencia por bloques verificados, receptor asíncrono (asyncio) y cola acotada con contrapresión. | [docs/modulo-M3-almacenamiento.md](docs/modulo-M3-almacenamiento.md), `mensajeria/almacen.py`, `mensajeria/receptor.py`, `distribuido/m3/` |
-| **M4 · Seguridad** | Pendiente. Ya hay: credenciales fuera del código, token para los adjuntos, workers sin root y contenedor de solo lectura. | — |
-| **M5 · Cómputo heterogéneo** | Medido CPU frente a GPU (texto 5,2×, fotos 11,3×, audio 6,7×) y cuantización; política de *routing* definida con esos datos (falta integrarla en el despachador junto con M2). | [docs/modulo-M5-heterogeneo.md](docs/modulo-M5-heterogeneo.md), `distribuido/m5/` |
+| **M4 · Seguridad** | Credenciales fuera del código, token para los adjuntos, workers sin root en un contenedor de solo lectura y conexión con TLS a RabbitMQ en la nube (`RABBIT_URL`). | [docs/modulo-M4-seguridad.md](docs/modulo-M4-seguridad.md) |
+| **M5 · Cómputo heterogéneo** | Medido CPU frente a GPU (texto 5,2×, fotos 11,3×, audio 6,7×) y cuantización; política de *routing* basada en esos datos, aplicada junto con el despacho de M2. | [docs/modulo-M5-heterogeneo.md](docs/modulo-M5-heterogeneo.md), `distribuido/m5/` |
 
 ## Puesta en marcha
 
@@ -55,7 +55,7 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
 # 2. Credenciales (nunca en el código)
-cp distribuido/config.env.ejemplo distribuido/config.env   # completar RABBIT_USER, RABBIT_PASS y WORKER_TOKEN
+cp distribuido/config.env.ejemplo distribuido/config.env   # llenar RABBIT_URL (o RABBIT_USER/RABBIT_PASS) y WORKER_TOKEN
 
 # 3. RabbitMQ
 cd distribuido && docker compose --env-file config.env up -d && cd ..
@@ -125,7 +125,8 @@ exportar_whatsapp.py   exportación automática desde un teléfono Android (uiau
 | [docs/mediciones/](docs/mediciones/) | Mediciones de los detectores (texto, YOLO, Whisper) y de M1 |
 | [docs/dataset.md](docs/dataset.md) | Dataset: fuentes, licencias y ground truth |
 | [docs/reutilizacion.md](docs/reutilizacion.md) | Qué se reutilizó del I Proyecto |
-| `docs/responsabilidades.md` · `docs/bitacora_ia.md` | *Pendientes* |
+| [docs/responsabilidades.md](docs/responsabilidades.md) | Matriz de responsabilidades |
+| [docs/bitacora_ia.md](docs/bitacora_ia.md) | Bitácora de uso de IA |
 
 ## Equipo
 - **Sharon Blanco**: importación, dashboard, procesamiento distribuido, detección, dataset y M1.

@@ -7,7 +7,7 @@
 | **Medición de la inferencia en CPU frente a GPU** | Script que mide los tres modelos de la plataforma (texto, fotos y audio) en CPU y en GPU. Para cada combinación lanza un proceso nuevo, carga el modelo, hace una inferencia de calentamiento y mide latencia, throughput, RAM y VRAM. En las corridas de CPU el proceso **no ve la GPU** (`CUDA_VISIBLE_DEVICES=""`). | `distribuido/m5/medir_dispositivos.py` |
 | **Modelo cuantizado frente a no cuantizado** | Whisper en `float16` contra `int8_float16` (GPU) y en `int8` (CPU), con el error de transcripción (WER) de cada uno. | `docs/mediciones/audio_whisper.md` |
 | **Cada worker se adapta a su hardware** | `dispositivo()` elige GPU si hay y CPU si no. `tamano_whisper()` elige *medium* en GPU y *small* en CPU, según las mediciones. Con `WA_DISPOSITIVO=cpu` el worker oculta la GPU antes de cargar los modelos: antes de esta corrección, pysentimiento usaba la GPU aunque el nodo estuviera configurado como "solo CPU". Cada latido informa al coordinador el dispositivo del nodo, y el dashboard lo muestra en la vista Workers. | `distribuido/worker/detectores.py`, `distribuido/worker/worker.py` |
-| **Política de routing** | Definida con los datos de la sección 4 (ver sección 5). Su integración en el despachador del coordinador va junto con el planificador de M2 (`_despachar()`), que decide qué tarea sale y hacia qué worker. | `distribuido/coordinador.py` *(pendiente de integrar con M2)* |
+| **Política de routing** | Definida con los datos de la sección 4 (ver sección 5). Se aplica en el despachador del coordinador (`_despachar()`), junto con el planificador de M2, que decide qué tarea sale y hacia qué worker. | `distribuido/coordinador.py` |
 
 ## 2. Concepto de Sistemas Operativos (conexión con la Unidad 1)
 - **CPU:** pocos núcleos potentes, optimizados para **baja latencia** y lógica con muchas ramas.
@@ -79,4 +79,3 @@ Datos: `docs/mediciones/m5/dispositivos.json` y `dispositivos.md`.
 **Limitaciones:**
 - Hay un solo tipo de GPU (RTX 3050 Laptop) y no hay NPU disponible.
 - En los workers de Colab con GPU T4 las cifras serán distintas, pero el orden de las aceleraciones (fotos > audio > texto) debería mantenerse.
-- La integración de la política en el despachador del coordinador queda pendiente, coordinada con el planificador de M2.
