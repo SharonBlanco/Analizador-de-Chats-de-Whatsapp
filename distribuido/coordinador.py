@@ -873,15 +873,42 @@ class Plataforma:
         self._guardar(tr)
         return None
 
+
     def _reencolar(self, id_tr: str, id_st: str) -> None:
         with self.lock:
             tr = self.trabajos.get(id_tr)
             st = tr["subtareas"].get(id_st) if tr else None
             if not st or st["estado"] != "retrying" or tr["estado"] == "cancelled":
                 return
+            if tr.get("m2") and self.m2_activo:
+                try:
+                    mensajes, _ = self.cargar(tr["caso"])
+                    st.update(
+                        estado="pendiente",
+                        worker=None,
+                        despachada=False,
+                        publicacion_incierta=False
+                    )
+                    self.despachadas.discard(id_st)
+                    self._barrera(tr)
+                    self._guardar(tr)
+
+                    self._registrar_pendientes(
+                        tr, mensajes, previos(mensajes)
+                    )
+                    self._despachar()
+                except Exception as e:
+                    print(
+                        f"[M2] error preparando reintento "
+                        f"{id_st}: {type(e).__name__}: {e}"
+                    )
+                return
+        # Comportamiento original para trabajos sin M2.
         try:
             mensajes, _ = self.cargar(tr["caso"])
-            self._publicar([self._mensaje(tr, st, mensajes, previos(mensajes))])
+            self._publicar([
+                self._mensaje(tr, st, mensajes, previos(mensajes))
+            ])
             with self.lock:
                 if st["estado"] == "retrying":
                     st["estado"] = "pendiente"
@@ -889,18 +916,48 @@ class Plataforma:
                     self._guardar(tr)
         except Exception as e:  # noqa: BLE001
             with self.lock:
-                st.update(estado="failed", error=f"No se pudo re-encolar: {e}", fin=time.time())
+                st.update(
+                    estado="failed",
+                    error=f"No se pudo re-encolar: {e}",
+                    fin=time.time()
+                )
                 self._barrera(tr)
                 self._guardar(tr)
 
+
     def _reanudar(self) -> None:
-        """Tras arrancar: los reintentos que esperaban en un temporizador se perdieron con
-        el proceso anterior; se vuelven a encolar. Lo pendiente sigue en RabbitMQ."""
+        """Recupera reintentos y reconstruye pendientes de M2."""
         with self.lock:
-            pendientes = [(tr["id"], st["id"]) for tr in self.trabajos.values() if tr["estado"] not in FINALES_TR
-                          for st in tr["subtareas"].values() if st["estado"] == "retrying"]
+            pendientes = [
+                (tr["id"], st["id"])
+                for tr in self.trabajos.values()
+                if tr["estado"] not in FINALES_TR
+                for st in tr["subtareas"].values()
+                if st["estado"] == "retrying"
+            ]
+        if self.m2_activo:
+            for tr in sorted(
+                self.trabajos.values(),
+                key=lambda trabajo: trabajo["creado"]
+            ):
+                if not tr.get("m2") or tr["estado"] in FINALES_TR:
+                    continue
+                try:
+                    mensajes, _ = self.cargar(tr["caso"])
+                    with self.lock:
+                        self._registrar_pendientes(
+                            tr, mensajes, previos(mensajes)
+                        )
+                except Exception as e:
+                    print(
+                        f"[M2] no se pudo recuperar "
+                        f"{tr['id']}: {type(e).__name__}: {e}"
+                    )
+            with self.lock:
+                self._despachar()
         for id_tr, id_st in pendientes:
             self._reencolar(id_tr, id_st)
+
 
     def _barrera(self, tr: dict) -> None:
         """Barrier/join: solo cuando TODAS las sub-tareas terminaron se cierra el trabajo."""
