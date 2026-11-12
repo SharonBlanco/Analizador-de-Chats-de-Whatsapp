@@ -153,11 +153,19 @@ class Plataforma:
         try:
             canal = conexion.channel()
             declarar(canal)
+            canal.confirm_delivery()
+
             for clave, cuerpo, prioridad in mensajes:
-                canal.basic_publish(exchange=exchange, routing_key=clave,
-                                    body=json.dumps(cuerpo, ensure_ascii=False).encode(),
-                                    properties=pika.BasicProperties(delivery_mode=PERSISTENTE,
-                                                                    priority=max(1, min(10, prioridad))))
+                canal.basic_publish(
+                    exchange=exchange,
+                    routing_key=clave,
+                    body=json.dumps(cuerpo, ensure_ascii=False).encode(),
+                    properties=pika.BasicProperties(
+                        delivery_mode=PERSISTENTE,
+                        priority=max(1, min(10, prioridad))
+                    ),
+                    mandatory=True
+                )
         finally:
             conexion.close()
 
@@ -279,13 +287,14 @@ class Plataforma:
         bloques = max(1, min(int(bloques), MAX_BLOQUES, n))
         tam = math.ceil(n / bloques)
         rangos = [(i, min(i + tam, n)) for i in range(0, n, tam)]
-
         subtareas: dict[str, dict] = {}
         def nueva(**datos):
             st = {"id": f"st-{uuid.uuid4().hex[:8]}", "estado": "pendiente", "worker": None, "intentos": 0,
+                  "despachada": False,
                   "reasignaciones": 0, "inicio": None, "fin": None, "duracion": None, "error": None,
                   "resultado": None, **datos}
             subtareas[st["id"]] = st
+
         for i, (ini, fin) in enumerate(rangos):
             nueva(tipo="texto", indice=i, ini=ini, fin=fin, mensajes=fin - ini,
                   desde=mensajes[ini].id, hasta=mensajes[fin - 1].id)
