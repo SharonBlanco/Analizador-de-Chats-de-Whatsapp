@@ -126,6 +126,7 @@ class Plataforma:
         self.despachadas: set[str] = set()
         # M2: reservas de capacidad asociadas a subtareas.
         self.reservas: dict[str, str] = {}
+        self.m2_activo = config("WA_M2_ACTIVO", "0") == "1"
         self.alertas: deque = deque(maxlen=200)       # notificaciones asíncronas (B.4)
         self._n_alerta = 0
         self.conectado = False
@@ -376,19 +377,67 @@ class Plataforma:
 
         return agregadas
 
+
     def _despachar(self) -> bool:
-        """Selecciona y publica una subtarea pendiente de M2.
+        """Despacha una subtarea compatible usando M2.
 
         Debe llamarse con self.lock adquirido.
+        Solo permite una subtarea M2 en tránsito a la vez.
         """
-        tarea = self.planificador.siguiente()
+        if not self.m2_activo or not self.conectado:
+            return False
+
+        # No publicar otra subtarea M2 mientras haya una anterior
+        # sin terminar o una publicación de resultado incierto.
+        for tr in self.trabajos.values():
+            if not tr.get("m2") or tr["estado"] in FINALES_TR:
+                continue
+            for st in tr["subtareas"].values():
+                if st.get("publicacion_incierta"):
+                    return False
+                if st.get("despachada") and st["estado"] not in FINALES_ST:
+                    return False
+
+        # Comprobar que existe un worker activo con capacidad libre.
+        pools = set()
+        ahora = time.time()
+
+        for worker in self.workers.values():
+            if ahora - worker.get("visto", 0) >= SIN_SENAL:
+                continue
+            if int(worker.get("en_curso", 0)) >= int(worker.get("concurrencia", 1)):
+                continue
+            pools.update(worker.get("pools", []))
+
+        permitidos = [POOLS[p] for p in pools if p in POOLS]
+        tarea = self.planificador.siguiente(pools=permitidos)
+
         if tarea is None:
             return False
+
+        cuerpo = tarea.datos[1]
+        tr = self.trabajos.get(cuerpo["trabajo"])
+        st = tr["subtareas"].get(tarea.id) if tr else None
+
+        if not st or st["estado"] != "pendiente" or tr["estado"] in FINALES_TR:
+            return False
+        # Registrar incertidumbre antes de publicar.
+        # Evita una republicación automática después de una caída.
+        st["publicacion_incierta"] = True
+        self._guardar(tr)
         try:
             self._publicar([tarea.datos])
-        except Exception:
-            self.planificador.devolver(tarea)
-            raise
+        except Exception as e:
+            st["error_publicacion"] = f"{type(e).__name__}: {e}"
+            self._guardar(tr)
+            print(f"[M2] publicación incierta de {tarea.id}: {e}")
+            return False
+        st["despachada"] = True
+        st["publicacion_incierta"] = False
+        st["error_publicacion"] = None
+        self.despachadas.add(tarea.id)
+        self._guardar(tr)
+
         return True
 
     def _escuchar(self) -> None:
@@ -425,6 +474,8 @@ class Plataforma:
             ahora = time.time()
             with self.lock:
                 self.workers[latido["worker"]] = {**latido, "visto": ahora}
+                if self.m2_activo:
+                    self._despachar()
                 e = self._entrada(latido["worker"])
                 e.update(ultima_vez=ahora, maquina=latido.get("maquina"), dispositivo=latido.get("dispositivo"),
                          pools=latido.get("pools") or [])
@@ -474,21 +525,43 @@ class Plataforma:
         except OSError:
             pass
 
+
     def _al_resultado(self, canal, metodo, _props, cuerpo) -> None:
         try:
             msg = json.loads(cuerpo)
+
             with self.lock:
                 recancelar = self._procesar(msg)
-            self._guardar_registro()
-            if recancelar:
-                # Un worker que se conectó después de la cancelación no recibió el aviso y
-                # empezó una sub-tarea de ese trabajo: se lo repetimos para que la aborte.
-                canal.basic_publish(exchange=EXCHANGE_CONTROL, routing_key="",
-                                    body=json.dumps({"cancelar": recancelar}).encode())
-        except Exception as e:  # noqa: BLE001 — un mensaje dañado no debe tumbar el hilo
-            print(f"[plataforma] error con un resultado: {type(e).__name__}: {e}")
-        canal.basic_ack(delivery_tag=metodo.delivery_tag)
 
+                # M2: liberar la subtarea y continuar con el despacho.
+                if self.m2_activo and msg.get("evento") in ("fin", "cancelada"):
+                    id_st = msg.get("subtarea")
+                    tr = self.trabajos.get(msg.get("trabajo"))
+                    st = tr["subtareas"].get(id_st) if tr else None
+
+                    if tr and tr.get("m2") and st:
+                        if st["estado"] in FINALES_ST:
+                            self.despachadas.discard(id_st)
+                            st["despachada"] = False
+                            self._guardar(tr)
+                            self._despachar()
+            # Conservar el registro de trabajadores.
+            self._guardar_registro()
+            # Repetir la cancelación si un worker comenzó
+            # una subtarea perteneciente a un trabajo cancelado.
+            if recancelar:
+                canal.basic_publish(
+                    exchange=EXCHANGE_CONTROL,
+                    routing_key="",
+                    body=json.dumps({"cancelar": recancelar}).encode()
+                )
+        except Exception as e:  # noqa: BLE001
+            print(
+                f"[plataforma] error con un resultado: "
+                f"{type(e).__name__}: {e}"
+            )
+
+        canal.basic_ack(delivery_tag=metodo.delivery_tag)
     # ============================================================ crear / cancelar
     def crear(self, caso: str, bloques: int, con_adjuntos: bool) -> dict:
         if not self.configurado:
@@ -525,23 +598,41 @@ class Plataforma:
               "creado": ahora, "iniciado": None, "terminado": None,
               "bloques": len(rangos), "adjuntos": len(subtareas) - len(rangos),
               "subtareas": subtareas, "resultado": None}
+
         anteriores = previos(mensajes)
         publicar = [self._mensaje(tr, st, mensajes, anteriores) for st in subtareas.values()]
+
+        # Nuevo flujo de M2
+        if self.m2_activo:
+            tr["m2"] = True
+
+            with self.lock:
+                self.trabajos[tr["id"]] = tr
+                self._guardar(tr)
+                self._registrar_pendientes(tr, mensajes, anteriores)
+                self._despachar()
+
+            return self.detalle(tr["id"])
         # Registrar ANTES de publicar: un worker rápido puede responder antes de que
         # _publicar() regrese, y su resultado se descartaría por "trabajo desconocido".
         with self.lock:
             self.trabajos[tr["id"]] = tr
             self._guardar(tr)
+
         try:
             self._publicar(publicar)
         except Exception as e:  # noqa: BLE001
             with self.lock:
                 self.trabajos.pop(tr["id"], None)
                 (self.dir / f"{tr['id']}.json").unlink(missing_ok=True)
-            raise ErrorTrabajo(f"No se pudieron encolar las sub-tareas: {type(e).__name__}: {e}") from e
+            raise ErrorTrabajo(
+                f"No se pudieron encolar las sub-tareas: {type(e).__name__}: {e}"
+            ) from e
+
         extra = f" + {tr['adjuntos']} adjuntos" if tr["adjuntos"] else ""
         print(f"[plataforma] {tr['id']}: {caso} dividido en {len(rangos)} bloques{extra}")
         return self.detalle(tr["id"])
+
 
     def _mensaje(self, tr: dict, st: dict, mensajes: list, anteriores: dict) -> tuple[str, dict, int]:
         base = {"trabajo": tr["id"], "subtarea": st["id"], "tipo": st["tipo"]}
