@@ -123,7 +123,9 @@ def configurar(texto_modelo: bool | None = None, whisper: str | None = None) -> 
 # ============================================================ texto
 # Reglas de amenaza (texto sin tildes y en minúscula). Cubren voseo y tuteo.
 _DANO = (r"(matar|asesinar|apunalar|punalar|acuchillar|balear|disparar|golpear|reventar|quemar|secuestrar|violar|"
-         r"ahorcar|degollar|desaparecer|partir la madre|partirle la madre|romper la cara|romperle la cara)")
+         r"ahorcar|degollar|desaparecer|partir la madre|partirle la madre|romper la cara|romperle la cara|"
+         # agregados tras evaluar contra 25 576 comentarios normales y 18 952 mensajes de chat (docs/mediciones/reglas_candidatas.json)
+         r"torturar|envenenar|linchar|descuartizar|estrangular|fusilar|acribillar|volar los sesos|volarle los sesos|volarle la cabeza|sacar los ojos|sacarle los ojos|mandar al hospital|mandarte al hospital|cortar la cara|cortarle la cara|desfigurar|dejar en silla de ruedas|dejarte en silla de ruedas)")
 # usos inofensivos de esos verbos ("matar el tiempo", "matar el hambre")
 _NO_DANO = r"(?!\w*\s+(el tiempo|el rato|el hambre|la sed|el aburrimiento|la espera|los nervios))"
 AMENAZAS = [
@@ -148,6 +150,19 @@ AMENAZAS = [
     # deseos de muerte o de daño ("ojalá se mueran", "deberían matarlos")
     r"\bojala (te|se|lo|la|los|las) (muera|mueran|maten|mate|pudra|pudran)\b",
     r"\b(deberian|habria que|hay que) (matar|matarlos|matarlas|matarte|quemar|quemarlos)\b",
+    # agregadas tras evaluarlas (0 falsas alarmas): deseos de muerte, acoso, sextorsión, intimidación.
+    # Se descartó «cuidá a tu familia» por marcar frases cariñosas («cuidá a tu mamá que está enferma»).
+    r"\bte quiero (ver )?(muerto|muerta|bajo tierra)\b",
+    r"\bno (sabes|sabis|sabe) con quien te (metiste|estas metiendo)\b",
+    r"\bte (voy|vamos) a hacer la vida (imposible|un infierno|cuadritos)\b",
+    r"\b(voy|vamos) a hacer que te arrepientas\b",
+    r"\bte va a pesar\b",
+    r"\bte (tengo|tenemos) (vigilado|vigilada|fichado|fichada)\b|\bte (estoy|estamos) vigilando\b",
+    r"\bsi no\b.{0,40}\b(publico|subo|paso|mando|reenvio) (tus|las|esas) (fotos|videos|nudes)\b",
+    r"\b(voy|vamos) a (publicar|subir|filtrar) tus (fotos|videos|nudes)\b",
+    r"\b(vas|van) a amanecer (muerto|muerta|con la boca llena de moscas|en una zanja)\b",
+    r"\bte (voy|vamos) a mandar a matar\b|\bte mando a matar\b",
+    r"\bte (voy|vamos) a dejar (como coladera|sin dientes|tieso|tiesa)\b",
 ]
 _RE_AMENAZA = [re.compile(p) for p in AMENAZAS]
 
@@ -167,6 +182,15 @@ ILICITOS = [
     r"\b(cobrar|cobramos|cobran|pagar|paga|pagas|pagan|pague|paguen)\s+(la\s+)?(renta|vacuna|cuota de proteccion)\b|\bextorsi",
     r"\b(mandar|mande|mandamos|pagar|pague)\s+a\s+matar\b|\bsicari",
     r"\b(vendo|vender|consigo|conseguir|comprar|compro)\b.{0,20}\b(pistola|pistolas|arma|armas|fusil|rifle|balas|municiones|nueve milimetros)\b",
+    # agregadas tras evaluarlas: lavado, falsificación, trata y tráfico, robo de celulares, más jerga de drogas y armas
+    r"\b(lavar|lavo|lavamos|lavando) (plata|dinero|la plata|el dinero)\b|\blavado de (dinero|activos)\b",
+    r"\b(falsificar|falsifico|falsificamos|falsificando) (documentos|billetes|la cedula|cedulas|firmas|la firma|pasaportes)\b",
+    r"\b(trafico|trata) de (personas|armas|organos)\b",
+    r"\b(bajarle|bajarte|le bajamos|le bajaron) el (cel|celular|telefono|carro|bolso)\b",
+    r"\b(vender|vendo|vende|vendemos|venden|conseguir|consigo|comprar|compro)\b.{0,25}\b(porro|porros|tachas|molly|lsd|ketamina|keta|anfetaminas|bareta)\b",
+    r"\b(vender|vendo|vende|vendemos|conseguir|consigo|comprar|compro)\b.{0,20}\b(cuete|cuetes|fierro|revolver|escopeta|chaleco antibalas)\b",
+    r"\b(pagar|pague|pagamos) (un|a un) sicario\b",
+    r"\bhay que (desaparecer|quitar del medio) a\b",
 ]
 _RE_ILICITO = [re.compile(p) for p in ILICITOS]
 # Estas se buscan CON tildes: "la mato" (amenaza) ≠ "la mató" (narración en pasado)
@@ -183,6 +207,14 @@ INSULTOS = [
     "payaso", "payasa", "ridiculo", "ridicula", "fracasado", "fracasada", "asqueroso", "asquerosa",
     "mongolico", "retrasado", "retrasada", "subnormal", "gilipollas", "lacra",
     "parasito", "das asco", "me das asco", "ignorante", "tonto", "tonta",
+    # agregados tras evaluarlos contra comentarios normales (máx. 2 falsas alarmas en 25 576 y 0 en los chats);
+    # se descartaron, entre otros, "puto" (602 falsas alarmas: intensificador en España), "putas", "estupidos", "payasos"
+    "tarados", "taradas", "huevones", "zorras", "maricones", "fracasados", "fracasadas", "lacras", "babosa", "babosos",
+    "mamona", "malnacido", "malnacida", "malnacidos", "hijueputas", "hijos de puta", "hijo e puta", "carepicha", "carapicha", "mamaguevo",
+    "mamahuevo", "mamahuevos", "comemierda", "comemierdas", "culero", "culera", "culeros", "cretino", "cretina", "tarupido",
+    "tarupida", "mongolo", "mongola", "anormales", "lameculos", "chupamedias", "joto", "jotos", "playo", "playos",
+    "travelo", "machorra", "sudaca", "sudacas", "malparidos", "pedazo de mierda", "saco de mierda", "bueno para nada", "buena para nada", "muerto de hambre",
+    "muerta de hambre", "cerebro de mosquito",
 ]
 # las frases largas primero, para que "hijo de puta" gane sobre "puta"
 _RE_INSULTO = re.compile(r"\b(" + "|".join(re.escape(w) for w in sorted(INSULTOS, key=len, reverse=True)) + r")\b")

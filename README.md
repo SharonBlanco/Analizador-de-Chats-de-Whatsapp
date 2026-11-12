@@ -8,6 +8,20 @@ La plataforma importa conversaciones exportadas de WhatsApp (texto, fotos y nota
 
 ---
 
+## Capturas
+
+**Conversaciones** importadas, con su peso, su período y el riesgo detectado (dataset sintético):
+
+![Conversaciones del dataset sintético](docs/img/conversaciones.png)
+
+**Hallazgos** de un caso: cada agresión con su severidad, el motivo y un enlace al mensaje, más los aciertos contra el ground truth:
+
+![Hallazgos de un caso](docs/img/caso_hallazgos.png)
+
+**Estadísticas** de una conversación (actividad, horarios, participantes):
+
+![Estadísticas de un caso](docs/img/caso_estadisticas.png)
+
 ## Qué hace
 
 | Función | Detalle |

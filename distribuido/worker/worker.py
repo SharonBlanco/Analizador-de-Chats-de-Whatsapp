@@ -202,6 +202,14 @@ def _pedir(con, ruta: str, cabeceras: dict) -> tuple[int, bytes]:
     return r.status, r.read()
 
 
+def base_archivos(sub: dict) -> str:
+    """Dónde descargar: la dirección que manda el coordinador en la tarea (su túnel actual) o COORDINADOR_URL.
+    Un worker de la misma PC o la misma red prefiere COORDINADOR_URL si lo configuraron a mano (WA_PREFERIR_LOCAL=1)."""
+    if config("WA_PREFERIR_LOCAL") == "1" or not sub.get("url_archivos"):
+        return COORDINADOR_URL
+    return sub["url_archivos"].rstrip("/")
+
+
 def descargar_por_bloques(sub: dict, destino: Path) -> dict:
     """Descarga un adjunto en bloques de BLOQUE bytes con PARALELAS conexiones keep-alive:
     1) pide el manifiesto (SHA-256 de cada bloque); 2) cada hilo pide sus bloques con HTTP Range,
@@ -209,7 +217,8 @@ def descargar_por_bloques(sub: dict, destino: Path) -> dict:
     en su posición con os.pwrite (reensamblado); 3) verifica el SHA-256 del archivo completo.
     Devuelve métricas de la transferencia."""
     ruta = f"{quote(sub['caso'])}/{quote(sub['archivo'])}"
-    con, base = _conexion(COORDINADOR_URL)
+    origen = base_archivos(sub)
+    con, base = _conexion(origen)
     try:
         estado, cuerpo = _pedir(con, f"{base}/manifiesto/{ruta}?bloque={BLOQUE}", {})
     finally:
@@ -227,7 +236,7 @@ def descargar_por_bloques(sub: dict, destino: Path) -> dict:
         os.ftruncate(fd, total)                         # reserva el tamaño final: cada bloque va a su lugar
 
         def trabajar(indices: list[int]) -> None:
-            con, base = _conexion(COORDINADOR_URL)     # una conexión keep-alive por hilo
+            con, base = _conexion(origen)     # una conexión keep-alive por hilo
             try:
                 for i in indices:
                     for intento in range(REINTENTOS_BLOQUE + 1):
@@ -237,7 +246,7 @@ def descargar_por_bloques(sub: dict, destino: Path) -> dict:
                             estado, datos = _pedir(con, f"{base}/archivo/{ruta}", {"Range": f"bytes={a}-{b}"})
                         except (OSError, http.client.HTTPException):
                             con.close()
-                            con, base = _conexion(COORDINADOR_URL)
+                            con, base = _conexion(origen)
                             estado, datos = 0, b""
                         if estado == 206 and hashlib.sha256(datos).hexdigest() == man["bloques"][i]:
                             os.pwrite(fd, datos, a)
@@ -289,7 +298,7 @@ def descargar_completo(url: str, sub: dict, destino: Path) -> tuple[str, int]:
 def procesar_adjunto(sub: dict) -> dict:
     if not TOKEN:
         raise ErrorPermanente("WORKER_TOKEN no está configurado en este worker")
-    url = f"{COORDINADOR_URL}/archivo/{quote(sub['caso'])}/{quote(sub['archivo'])}"
+    url = f"{base_archivos(sub)}/archivo/{quote(sub['caso'])}/{quote(sub['archivo'])}"
     carpeta = DIR_TRABAJO / sub["subtarea"]
     carpeta.mkdir(parents=True, exist_ok=True)
     destino = carpeta / Path(sub["archivo"]).name
@@ -540,7 +549,7 @@ if __name__ == "__main__":
     print("=" * 60)
     print(f"WORKER {WORKER_ID} (v{VERSION}) · pools: {', '.join(MIS_POOLS)} · concurrencia {CONCURRENCIA}")
     print(f"Máquina: {m['hostname']} · {m['cpu']} · {m['nucleos']} núcleos · {m['so']} · {m['usuario']}")
-    print(f"Coordinador (adjuntos): {COORDINADOR_URL}" + ("" if TOKEN else "  [!] sin WORKER_TOKEN: no podrá verificar adjuntos"))
+    print(f"Coordinador (adjuntos): la dirección que mande el coordinador en cada tarea (si no, {COORDINADOR_URL})" + ("" if TOKEN else "  [!] sin WORKER_TOKEN: no podrá verificar adjuntos"))
     print(f"Detección: {'desactivada' if not DETECCION else FALTA_DETECCION or 'ok, dispositivo ' + detectores.dispositivo()}")
     if RETARDO_DEMO:
         print(f"[!] Modo demostración: +{RETARDO_DEMO:g} s por sub-tarea (no usar para medir)")

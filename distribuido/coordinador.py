@@ -36,7 +36,7 @@ import pika
 
 from comun import (COLA_RESULTADOS, ESPERA_REINTENTO, EXCHANGE_CONTROL, EXCHANGE_LATIDOS, MAX_REINTENTOS,
                    PERSISTENTE, POOLS, SIN_SENAL, TIPOS_POOL, ConfiguracionIncompleta, config, declarar,
-                   destino_rabbit, parametros_rabbit)
+                   destino_rabbit, parametros_rabbit, url_publica)
 from estadisticas import calcular, combinar, previos
 from planificador import Planificador, Tarea, convertir_prioridad
 
@@ -114,6 +114,10 @@ class Plataforma:
             intervalo_aging=float(config("WA_INTERVALO_AGING", "10"))
         )
         self.workers: dict[str, dict] = {}
+        # Registro permanente de workers (no se borra al desconectarse): qué procesó cada uno
+        self.archivo_registro = dataset / ".metricas" / "workers.json"
+        self.registro: dict[str, dict] = {}
+        self._registro_guardado = 0.0
         # M2: subtareas publicadas que aún no han finalizado.
         self.despachadas: set[str] = set()
         # M2: reservas de capacidad asociadas a subtareas.
@@ -143,7 +147,63 @@ class Plataforma:
                 self.trabajos[tr["id"]] = tr
             except (OSError, json.JSONDecodeError, KeyError):
                 print(f"[plataforma] no se pudo leer {f.name}")
+        self._cargar_registro()
         threading.Thread(target=self._escuchar, daemon=True, name="resultados").start()
+
+    # ============================================================ registro de workers
+    def _entrada(self, worker: str) -> dict:
+        return self.registro.setdefault(worker, {
+            "worker": worker, "primera_vez": None, "ultima_vez": None, "maquina": None, "dispositivo": None, "pools": [],
+            "subtareas_completadas": 0, "subtareas_fallidas": 0, "por_tipo": {}, "segundos_computo": 0.0,
+            "trabajos": [], "casos": []})
+
+    def _sumar(self, worker: str, tr: dict, st: dict, ok: bool, cuando: float | None = None) -> None:
+        """Anota una sub-tarea terminada por `worker` (llamar con self.lock)."""
+        if not worker:
+            return
+        e = self._entrada(worker)
+        if ok:
+            e["subtareas_completadas"] += 1
+            tipo = st["tipo"] if st["tipo"] == "texto" else (st.get("tipo_archivo") or "adjunto")
+            e["por_tipo"][tipo] = e["por_tipo"].get(tipo, 0) + 1
+            e["segundos_computo"] = round(e["segundos_computo"] + float(st.get("duracion") or 0), 3)
+            if tr["id"] not in e["trabajos"]:
+                e["trabajos"].append(tr["id"])
+            if tr["caso"] not in e["casos"]:
+                e["casos"].append(tr["caso"])
+        else:
+            e["subtareas_fallidas"] += 1
+        cuando = cuando or time.time()
+        e["primera_vez"] = min(e["primera_vez"] or cuando, cuando)
+        e["ultima_vez"] = max(e["ultima_vez"] or cuando, cuando)
+
+    def _cargar_registro(self) -> None:
+        try:
+            self.registro = json.loads(self.archivo_registro.read_text(encoding="utf-8"))
+            return
+        except (OSError, ValueError):
+            pass
+        # Primera vez: se reconstruye con los trabajos ya guardados
+        with self.lock:
+            for tr in self.trabajos.values():
+                for st in tr["subtareas"].values():
+                    if st.get("worker") and st["estado"] in ("completed", "failed"):
+                        self._sumar(st["worker"], tr, st, st["estado"] == "completed", st.get("fin") or tr["creado"])
+        self._guardar_registro(forzar=True)
+        print(f"[plataforma] registro de workers reconstruido: {len(self.registro)} worker(s)")
+
+    def _guardar_registro(self, forzar: bool = False) -> None:
+        if not forzar and time.time() - self._registro_guardado < 2:
+            return
+        self._registro_guardado = time.time()
+        try:
+            self.archivo_registro.parent.mkdir(parents=True, exist_ok=True)
+            tmp = self.archivo_registro.with_suffix(".tmp")
+            with self.lock:
+                tmp.write_text(json.dumps(self.registro, ensure_ascii=False), encoding="utf-8")
+            os.replace(tmp, self.archivo_registro)
+        except OSError as e:
+            print(f"[plataforma] no se pudo guardar el registro de workers: {e}")
 
     def _guardar(self, tr: dict) -> None:
         tmp = self.dir / f"{tr['id']}.tmp"
@@ -339,13 +399,20 @@ class Plataforma:
     def _al_latido(self, _canal, _metodo, _props, cuerpo) -> None:
         try:
             latido = json.loads(cuerpo)
+            ahora = time.time()
             with self.lock:
-                self.workers[latido["worker"]] = {**latido, "visto": time.time()}
+                self.workers[latido["worker"]] = {**latido, "visto": ahora}
+                e = self._entrada(latido["worker"])
+                e.update(ultima_vez=ahora, maquina=latido.get("maquina"), dispositivo=latido.get("dispositivo"),
+                         pools=latido.get("pools") or [])
+                e["primera_vez"] = e["primera_vez"] or ahora
+            self._guardar_registro()
             self._anotar_memoria(latido)
         except (ValueError, KeyError):
             pass
 
     def _anotar_memoria(self, latido: dict) -> None:
+        self._anotar_recursos(latido)
         m = latido.get("memoria")
         if not m:
             return
@@ -364,11 +431,32 @@ class Plataforma:
         except OSError:
             pass
 
+    def _anotar_recursos(self, latido: dict) -> None:
+        """B.6: CPU y memoria de cada nodo en cada latido (uso de recursos por nodo durante una ráfaga)."""
+        m = latido.get("memoria") or {}
+        fila = [round(time.time(), 2), latido["worker"], (latido.get("maquina") or {}).get("hostname"),
+                latido.get("dispositivo"), latido.get("cpu"), latido.get("ram"), latido.get("rss_mb"), m.get("uso_mb"),
+                latido.get("en_curso"), latido.get("completadas"), latido.get("fallidas")]
+        ruta = self.csv_memoria.parent / "recursos_workers.csv"
+        try:
+            with self._candado_csv:
+                nuevo = not ruta.exists()
+                ruta.parent.mkdir(parents=True, exist_ok=True)
+                with open(ruta, "a", newline="", encoding="utf-8") as f:
+                    w = csv.writer(f)
+                    if nuevo:
+                        w.writerow(["t", "worker", "maquina", "dispositivo", "cpu_pct", "ram_pct", "rss_mb", "cgroup_mb",
+                                    "en_curso", "completadas", "fallidas"])
+                    w.writerow(fila)
+        except OSError:
+            pass
+
     def _al_resultado(self, canal, metodo, _props, cuerpo) -> None:
         try:
             msg = json.loads(cuerpo)
             with self.lock:
                 recancelar = self._procesar(msg)
+            self._guardar_registro()
             if recancelar:
                 # Un worker que se conectó después de la cancelación no recibió el aviso y
                 # empezó una sub-tarea de ese trabajo: se lo repetimos para que la aborte.
@@ -443,8 +531,9 @@ class Plataforma:
                 bloque.append(d)
             return POOLS["texto"], {**base, "mensajes": bloque}, tr["prioridad"]
         pool = TIPOS_POOL.get(st.get("tipo_archivo"), "adjuntos")
+        # url_archivos: la dirección actual del túnel (si hay); así los workers no necesitan COORDINADOR_URL fijo
         return POOLS[pool], {**base, "caso": tr["caso"], "archivo": st["archivo"], "tipo_archivo": st.get("tipo_archivo"),
-                             "sha256": st["sha256"], "bytes": st["bytes"]}, tr["prioridad"]
+                             "sha256": st["sha256"], "bytes": st["bytes"], "url_archivos": url_publica()}, tr["prioridad"]
 
     def cancelar(self, id_: str) -> dict:
         with self.lock:
@@ -508,6 +597,7 @@ class Plataforma:
         elif evento == "fin" and msg.get("estado") == "completed":
             st.update(estado="completed", worker=worker, fin=time.time(), duracion=msg.get("duracion"),
                       resultado=msg.get("resultado"), error=None)
+            self._sumar(worker, tr, st, True)
             altos = [h for h in self._hallazgos_de(st) if h["severidad"] == "alta"]
             if altos and tr["estado"] != "cancelled":
                 h = altos[0]
@@ -524,6 +614,7 @@ class Plataforma:
                 threading.Timer(espera, self._reencolar, args=(tr["id"], st["id"])).start()
             else:
                 st.update(estado="failed", worker=worker, fin=time.time(), duracion=msg.get("duracion"))
+                self._sumar(worker, tr, st, False)
         self._barrera(tr)
         self._guardar(tr)
         return None
@@ -703,11 +794,19 @@ class Plataforma:
 
     # ============================================================ consultas
     def _workers(self) -> list[dict]:
+        """Todos los workers que alguna vez se conectaron (no se borran al desconectarse), con su historial."""
         ahora = time.time()
-        for w in [w for w, x in self.workers.items() if ahora - x["visto"] > 600]:
-            del self.workers[w]                               # sin señal hace más de 10 min
-        lista = [{**x, "activo": ahora - x["visto"] < SIN_SENAL, "hace": round(ahora - x["visto"], 1)}
-                 for x in self.workers.values()]
+        lista = []
+        for w in sorted(set(self.workers) | set(self.registro)):
+            vivo = self.workers.get(w)
+            r = self.registro.get(w) or self._entrada(w)
+            visto = vivo["visto"] if vivo else (r.get("ultima_vez") or 0)
+            base = dict(vivo) if vivo else {"worker": w, "maquina": r.get("maquina"), "pools": r.get("pools"),
+                                            "dispositivo": r.get("dispositivo"), "en_curso": 0}
+            lista.append({**base, "activo": ahora - visto < SIN_SENAL, "hace": round(ahora - visto, 1),
+                          "historial": {k: r.get(k) for k in ("primera_vez", "ultima_vez", "subtareas_completadas",
+                                                               "subtareas_fallidas", "por_tipo", "segundos_computo")}
+                                       | {"trabajos": len(r.get("trabajos") or []), "casos": len(r.get("casos") or [])}})
         return sorted(lista, key=lambda x: (not x["activo"], x["worker"]))
 
     def _resumen(self, tr: dict) -> dict:

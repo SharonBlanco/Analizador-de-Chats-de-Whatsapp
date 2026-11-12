@@ -89,6 +89,36 @@ def parametros_rabbit() -> pika.ConnectionParameters:
         heartbeat=30, blocked_connection_timeout=300, connection_attempts=1, socket_timeout=5)
 
 
+_url_publica = {"valor": None, "hasta": 0.0}
+
+
+def url_publica() -> str | None:
+    """Dirección por la que los workers de otras redes descargan los adjuntos.
+    WA_URL_PUBLICA fija, o la del túnel rápido de Cloudflare que esté corriendo en esta PC (cloudflared
+    publica su dirección en su servidor de métricas local, puertos 20241–20245). Se consulta cada 30 s:
+    si el túnel se reinicia con otra dirección, las tareas nuevas ya llevan la nueva."""
+    fija = config("WA_URL_PUBLICA")
+    if fija:
+        return fija.rstrip("/")
+    import json
+    import time
+    import urllib.request
+    if time.time() < _url_publica["hasta"]:
+        return _url_publica["valor"]
+    valor = None
+    for puerto in range(20241, 20246):
+        try:
+            with urllib.request.urlopen(f"http://127.0.0.1:{puerto}/quicktunnel", timeout=0.5) as r:
+                host = json.loads(r.read()).get("hostname")
+                if host:
+                    valor = f"https://{host}"
+                    break
+        except Exception:  # noqa: BLE001 — no hay túnel en ese puerto
+            continue
+    _url_publica.update(valor=valor, hasta=time.time() + 30)
+    return valor
+
+
 def destino_rabbit() -> str:
     """Dónde está RabbitMQ, para mostrar (sin la contraseña)."""
     url = config("RABBIT_URL")

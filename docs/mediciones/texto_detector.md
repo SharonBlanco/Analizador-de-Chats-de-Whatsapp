@@ -70,3 +70,34 @@ Las 11 falsas alarmas restantes son ambiguas incluso para una persona, por ejemp
 | Las 8 notas de voz del equipo | 6 → **8** detectadas |
 | Frases parecidas inofensivas ("saltar la cuerda", "saltar al agua", "saltar la tapia") | 0 marcadas |
 | Comentarios de OffendES no ofensivos marcados por las reglas nuevas | 0 de 11 055 |
+
+## Ampliación de las reglas, evaluando cada candidata (12/11/2026)
+**Motivo:** las listas de insultos, amenazas y actividades ilícitas eran cortas. Para ampliarlas sin repetir el error de "basura", cada palabra o regla candidata se probó **por separado** antes de agregarla.
+
+**Método:** `python distribuido/evaluar_reglas.py`. Cada candidata se compara contra:
+- 25 576 comentarios **no ofensivos** de OffendES (train, validation y test) → falsas alarmas;
+- 18 952 mensajes **normales** de los chats sintéticos → falsas alarmas en conversaciones tipo WhatsApp;
+- 4 840 comentarios **ofensivos** de OffendES → cuántos nuevos encuentra.
+
+**Criterio:** como máximo 2 falsas alarmas en OffendES y ninguna en los chats. El detalle de cada candidata está en `docs/mediciones/reglas_candidatas.json`.
+
+| Categoría | Candidatas | Aceptadas | Ejemplos agregados | Descartadas (falsas alarmas) |
+|---|---|---|---|---|
+| Insultos | 77 | 52 | carepicha, playo, mamahuevo, malnacido, comemierda, cretino, sudaca, travelo, pedazo de mierda | "puto" (602: intensificador en España), "putos" (64), "putas" (34), "estúpidos" (17), "idiotas" (10), "ignorantes" (10), "payasos" (6) |
+| Verbos de daño | 22 | 19 | torturar, envenenar, linchar, estrangular, acribillar, volarle la cabeza, dejarte en silla de ruedas | "pelar", "quebrar" y "rematar": sin falsas alarmas en los datos, pero descartadas **por criterio** ("voy a pelar las papas", "vamos a quebrar", "voy a rematar la tarea") |
+| Amenazas | 12 | 11 | "te quiero ver muerto", "no sabés con quién te metiste", sextorsión ("si no… publico tus fotos"), "te tengo vigilada" | "cuidá a tu familia" (marcó "cuidá a tu mamá que está enferma") |
+| Actividades ilícitas | 8 | 8 | lavado de dinero, falsificación de documentos, trata y tráfico, "le bajaron el celular", jerga de drogas y armas | "monte" (marcó "vende monte de jardín") |
+
+**Verificación con frases de prueba:**
+- 25 frases agresivas (amenazas, ilícitos e insultos nuevos): **25 detectadas**.
+- 18 frases normales parecidas ("voy a pelar las papas", "voy a publicar las fotos del paseo", "le bajaron el precio al celular"…): **0 falsas alarmas**.
+- "qué tarados los de la tele" se marca como insulto. Es correcto: es un insulto, aunque sea en broma.
+
+**Efecto sobre OffendES test (solo reglas, sin modelo):**
+
+| | Precisión | Exhaustividad | F1 | Verdaderos positivos | Falsas alarmas |
+|---|---|---|---|---|---|
+| Antes | 0,530 | 0,392 | 0,450 | 999 | 887 |
+| Después | 0,531 | 0,397 | 0,455 | 1014 | 895 |
+
+En OffendES (comentarios de YouTube, sobre todo de España y México) la mejora es pequeña: +15 aciertos con +8 falsas alarmas, y la precisión se mantiene. El aporte principal está en lo que OffendES **no contiene**: amenazas, sextorsión, actividades ilícitas y jerga costarricense, que son justo lo que aparece en chats reales de WhatsApp.

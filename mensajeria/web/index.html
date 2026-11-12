@@ -490,6 +490,8 @@ const ESTADOS = {queued: ["En cola", ""], pendiente: ["Pendiente", ""], processi
   partially_completed: ["Parcial", "aviso"], failed: ["Fallido", "error"], cancelled: ["Cancelado", ""]};
 const insignia = e => `<span class="insignia ${(ESTADOS[e] || [e, ""])[1]}">${(ESTADOS[e] || [e])[0]}</span>`;
 const FINAL_TR = new Set(["completed", "partially_completed", "failed", "cancelled"]);
+/* "hace 5 min", "hace 3 h", "hace 2 días" (para workers desconectados) */
+const fmtHace = x => x == null ? "—" : x < 60 ? `${Math.round(x)} s` : x < 3600 ? `${Math.round(x / 60)} min` : x < 86400 ? `${(x / 3600).toLocaleString("es-CR", {maximumFractionDigits: 1})} h` : `${Math.round(x / 86400)} ${Math.round(x / 86400) === 1 ? "día" : "días"}`;
 const fmtSeg = x => x == null ? "—" : x < 1 ? `${Math.round(x * 1000).toLocaleString("es-CR")} ms` : x < 60 ? `${x.toLocaleString("es-CR", {maximumFractionDigits: 2})} s` : `${Math.floor(x / 60)} min ${Math.round(x % 60)} s`;
 async function cargarPlataforma() {
   try { st.plat = await api("/api/plataforma"); }
@@ -1649,18 +1651,24 @@ function tablaWorkers(ws) {
     <p>En cada computadora que aporte capacidad, desde la raíz del proyecto:</p>
     <pre class="cmd" style="max-width:560px;margin:10px auto 0;text-align:left">python3 distribuido/worker/worker.py</pre></div>`;
   return `<table><thead><tr><th>Worker</th><th>Máquina</th><th>Pools</th><th>Detección</th><th>Estado</th><th class="der">CPU</th><th class="der">RAM</th>
-    <th style="min-width:200px">Memoria (M1)</th><th class="der">En curso</th><th class="der">Completadas</th><th class="der">Fallidas</th><th>Usuario</th></tr></thead>
+    <th style="min-width:200px">Memoria (M1)</th><th class="der">En curso</th><th class="der" title="Desde que se conectó por primera vez (no se pierde al desconectarse)">Sub-tareas procesadas</th><th class="der">Casos</th><th class="der">Fallidas</th><th class="der">Cómputo</th><th>Usuario</th></tr></thead>
     <tbody>${ws.map(w => `<tr>
       <td><div style="font-weight:600;white-space:nowrap">${esc(w.worker)}</div><div class="mono" style="white-space:normal;word-break:break-all;max-width:180px">${esc(w.maquina?.hostname || "")}</div></td>
       <td style="font-size:12.5px;min-width:240px">${esc(w.maquina?.cpu || "")}<div style="color:var(--texto-2)">${w.maquina?.nucleos ?? "?"} núcleos · ${w.maquina?.ram_gb ?? "?"} GB · ${esc(w.maquina?.so || "")}</div></td>
       <td>${(w.pools || []).map(x => `<span class="etiqueta">${esc(x)}</span>`).join(" ")}</td>
       <td style="font-size:12.5px;min-width:170px">${w.deteccion === "ok" ? `Activa · <b>${esc((w.dispositivo || "").toUpperCase())}</b>` : esc(w.deteccion || "—")}
         ${Object.entries(w.modelos || {}).map(([n, m]) => `<div style="color:var(--texto-2)" title="carga ${m.segundos} s">${esc(n)}: +${Math.round((m.rss_despues_mb || 0) - (m.rss_antes_mb || 0))} MB</div>`).join("")}</td>
-      <td>${w.activo ? `<span class="insignia ok">Activo</span>` : `<span class="insignia">Sin señal · ${fmtSeg(w.hace)}</span>`}</td>
-      <td class="der num">${w.cpu != null ? w.cpu.toLocaleString("es-CR") + " %" : "—"}</td>
-      <td class="der num">${w.ram != null ? w.ram.toLocaleString("es-CR") + " %" : "—"}</td>
-      <td>${celdaMemoria(w)}</td>
-      <td class="der num">${fmtN(w.en_curso)}</td><td class="der num">${fmtN(w.completadas)}</td><td class="der num">${fmtN(w.fallidas)}</td>
+      <td style="white-space:nowrap">${w.activo ? `<span class="insignia ok">Conectado</span>` : `<span class="insignia">Desconectado</span>
+        <div style="font-size:12px;color:var(--texto-2);margin-top:3px">visto hace ${fmtHace(w.hace)}</div>`}</td>
+      <td class="der num">${w.activo && w.cpu != null ? w.cpu.toLocaleString("es-CR") + " %" : "—"}</td>
+      <td class="der num">${w.activo && w.ram != null ? w.ram.toLocaleString("es-CR") + " %" : "—"}</td>
+      <td>${w.activo ? celdaMemoria(w) : `<span style="color:var(--texto-2)">—</span>`}</td>
+      <td class="der num">${w.activo ? fmtN(w.en_curso) : "—"}</td>
+      <td class="der num"><b>${fmtN(w.historial?.subtareas_completadas ?? 0)}</b>
+        <div style="font-size:12px;color:var(--texto-2);font-weight:400;white-space:nowrap">${Object.entries(w.historial?.por_tipo || {}).sort((a, b) => b[1] - a[1]).map(([t, n]) => `${esc(t)} ${fmtN(n)}`).join(" · ")}</div></td>
+      <td class="der num">${fmtN(w.historial?.casos ?? 0)}</td>
+      <td class="der num">${fmtN(w.historial?.subtareas_fallidas ?? 0)}</td>
+      <td class="der num">${fmtSeg(w.historial?.segundos_computo)}</td>
       <td>${esc(w.maquina?.usuario || "")}</td></tr>`).join("")}</tbody></table>`;
 }
 /* M1: uso del cgroup frente al límite del contenedor, reserva del control de admisión, OOM y reinicios */
@@ -1710,12 +1718,12 @@ function cuerpoWorkers() {
   return `${bloqueConexion(p)}
   <section class="panel kpis" style="grid-template-columns:repeat(4,1fr);${p.configurado && p.conectado ? "" : "margin-top:16px"}">
     ${kpi("RabbitMQ", p.conectado ? "Conectado" : p.configurado ? "Sin conexión" : "Sin configurar", esc(p.rabbit || ""))}
-    ${kpi("Workers activos", fmtN(activos.length), `${fmtN(p.workers.length - activos.length)} sin señal`)}
+    ${kpi("Workers activos", fmtN(activos.length), `${fmtN(p.workers.length - activos.length)} desconectados`)}
     ${kpi("Sub-tareas en curso", fmtN(activos.reduce((a, w) => a + (w.en_curso || 0), 0)), "en este momento")}
     ${kpi("Trabajos", fmtN(p.trabajos.length), `${fmtN(p.trabajos.filter(t => !FINAL_TR.has(t.estado)).length)} en curso`)}
   </section>
   <section class="panel tabla-scroll" style="margin-top:20px"><div class="panel-cab" style="padding-bottom:12px"><div><h2>Workers</h2>
-    <p class="panel-desc">Un worker pasa a "sin señal" si no envía latidos durante 15 s</p></div></div>${tablaWorkers(p.workers)}</section>
+    <p class="panel-desc">Todos los workers que se conectaron alguna vez. Pasa a "desconectado" si no envía latidos durante 15 s; su historial se conserva.</p></div></div>${tablaWorkers(p.workers)}</section>
   <section class="panel tabla-scroll" style="margin-top:20px"><div class="panel-cab" style="padding-bottom:12px"><div><h2>Trabajos recientes</h2>
     <p class="panel-desc">Procesamientos en paralelo de todas las conversaciones</p></div></div>
     ${p.trabajos.length ? tablaTrabajos(p.trabajos, true) : `<div class="vacio">Todavía no se ha dividido ninguna conversación.</div>`}</section>`;
@@ -1764,7 +1772,7 @@ function renderParDinamico() {
   const ws = (p?.workers || []);
   const activos = ws.filter(w => w.activo);
   $("#parConexion").innerHTML = bloqueConexion(p) ? `<div style="margin-bottom:14px">${bloqueConexion(p)}</div>` : "";
-  $("#parWorkers").innerHTML = !p ? "" : ws.length ? `<div style="font-size:13px"><b>${activos.length}</b> ${activos.length === 1 ? "activo" : "activos"}${ws.length > activos.length ? ` · ${ws.length - activos.length} sin señal` : ""}</div>
+  $("#parWorkers").innerHTML = !p ? "" : ws.length ? `<div style="font-size:13px"><b>${activos.length}</b> ${activos.length === 1 ? "activo" : "activos"}${ws.length > activos.length ? ` · ${ws.length - activos.length} desconectados` : ""}</div>
     <div class="chips-w">${ws.map(w => `<span class="chip-w ${w.activo ? "" : "off"}" title="${esc(w.maquina?.hostname || "")}"><i></i>${esc(w.worker)}
       <span style="color:var(--texto-2)">${(w.pools || []).join(", ")}${w.en_curso ? ` · ${w.en_curso} en curso` : ""}</span></span>`).join("")}</div>`
     : `<div class="ayuda" style="margin:0">No hay workers conectados. Inicie uno con <span class="mono">python3 distribuido/worker/worker.py</span>.</div>`;

@@ -1,0 +1,1144 @@
+{
+  "max_falsas": 2,
+  "filas": [
+    {
+      "categoria": "insulto",
+      "candidata": "idiotas",
+      "falsas_offendes": 10,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 9,
+      "aceptada": false,
+      "ejemplo_falsa": "con dos anos de diferencia de edad y lo adulta que se te ve, se que este video tiene ya ti"
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "imbeciles",
+      "falsas_offendes": 4,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 12,
+      "aceptada": false,
+      "ejemplo_falsa": "6:40 javi, no es \"cortito\" o estupido, hay mucha gente que es ignorante y esto no es de fo"
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "estupidos",
+      "falsas_offendes": 17,
+      "falsas_sinteticos": 1,
+      "nuevos_ofensivos": 9,
+      "aceptada": false,
+      "ejemplo_falsa": "dalas si te vas a poner a investigar los quilombos de las famosas argentinas te vas a volv"
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "estupidas",
+      "falsas_offendes": 15,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 14,
+      "aceptada": false,
+      "ejemplo_falsa": "esty ha hecho para tnt una micro micro serie muy buena de cinco capitulos de leyes estupid"
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "inutiles",
+      "falsas_offendes": 6,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 4,
+      "aceptada": false,
+      "ejemplo_falsa": "parece mentira que la gente no se de cuenta de que los test rapidos son inutiles, pues no "
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "tarados",
+      "falsas_offendes": 2,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 2,
+      "aceptada": true,
+      "ejemplo_falsa": "robert hare?? estudio a tarados maximps. acuno la frase de : si te encuentras con un psico"
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "taradas",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "pendejos",
+      "falsas_offendes": 9,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 8,
+      "aceptada": false,
+      "ejemplo_falsa": "explicas de una manera increible....se quedan pendejos mis profesores. buen video miare."
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "pendejas",
+      "falsas_offendes": 4,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 3,
+      "aceptada": false,
+      "ejemplo_falsa": "el tik tok es para subir cosas pendejas cosas para gente con poca capacidad de cerebro asc"
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "huevones",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "cabrones",
+      "falsas_offendes": 6,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 2,
+      "aceptada": false,
+      "ejemplo_falsa": "para cuando el video de yo era amigo de papa noel desmintiendo a ese cabron o cabrones"
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "putas",
+      "falsas_offendes": 34,
+      "falsas_sinteticos": 1,
+      "nuevos_ofensivos": 7,
+      "aceptada": false,
+      "ejemplo_falsa": "me vale una mierda si \"bn\" significa \"bien\" o \"buenas noches\"  que chuchas les cuesta pone"
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "perras",
+      "falsas_offendes": 6,
+      "falsas_sinteticos": 1,
+      "nuevos_ofensivos": 2,
+      "aceptada": false,
+      "ejemplo_falsa": "esty yo se que no es el video correcto para recomendarte esto pero acabo de ver tu video m"
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "zorras",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "maricones",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 1,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "payasos",
+      "falsas_offendes": 6,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 17,
+      "aceptada": false,
+      "ejemplo_falsa": "joder vos me has hecho llorar literal no se ni cuando empeze a ver tus videos quisa fue ha"
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "ridiculos",
+      "falsas_offendes": 2,
+      "falsas_sinteticos": 1,
+      "nuevos_ofensivos": 2,
+      "aceptada": false,
+      "ejemplo_falsa": "le tiran hate a lizbeth por no dejar el tema, y estos ridiculos siguen en lo mismo tambien"
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "fracasados",
+      "falsas_offendes": 1,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": "siento decirte que al final has dado una charla motivacional y explicativo sin querer para"
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "fracasadas",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "retrasados",
+      "falsas_offendes": 3,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 10,
+      "aceptada": false,
+      "ejemplo_falsa": "ey yo tengo 14 y te sigo desde hace 3 vi casi todos tus videos y los entiendo muy bien sol"
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "parasitos",
+      "falsas_offendes": 3,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 2,
+      "aceptada": false,
+      "ejemplo_falsa": "busquen hay una mujer argentina que curo a su hijo con el dioxido de cloro , ese nino boto"
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "ignorantes",
+      "falsas_offendes": 10,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 2,
+      "aceptada": false,
+      "ejemplo_falsa": "tienes mucha gente envidiosa detras de ti lo importante es seguir adelante y dejar a los i"
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "asquerosos",
+      "falsas_offendes": 4,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 3,
+      "aceptada": false,
+      "ejemplo_falsa": "vaya este video es una mierda literal osea el vato la esta atacando solo por diferente idi"
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "lacras",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "baboso",
+      "falsas_offendes": 5,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 4,
+      "aceptada": false,
+      "ejemplo_falsa": "estoy totalmente en contra que hables todo el tiempo de miare . no esta en yt . hace algun"
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "babosa",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 1,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "babosos",
+      "falsas_offendes": 1,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 1,
+      "aceptada": true,
+      "ejemplo_falsa": "como se pasa jajaja caracol es el peor insulto que te pueden decir, son babosos, cornudos,"
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "mamon",
+      "falsas_offendes": 8,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 12,
+      "aceptada": false,
+      "ejemplo_falsa": "nauter mamon, hazme 1 hijo"
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "mamona",
+      "falsas_offendes": 2,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 3,
+      "aceptada": true,
+      "ejemplo_falsa": "me gustaria compartir parte de mi experiencia, y es que asi como tu muchas veces nos haces"
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "malnacido",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "malnacida",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "malnacidos",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "hijueputas",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "hijos de puta",
+      "falsas_offendes": 1,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": "en mi pais honduras hay una que se llama global marketing que \"venden perfumes\"😂 casi casi"
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "hijo e puta",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "carepicha",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "carapicha",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "mamaguevo",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "mamahuevo",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "mamahuevos",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "comemierda",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 1,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "comemierdas",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "culero",
+      "falsas_offendes": 2,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 1,
+      "aceptada": true,
+      "ejemplo_falsa": "pinche ano culero, ya parece video de windy girk"
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "culera",
+      "falsas_offendes": 2,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": "pinche morra culera ya me hice fan de tus videos <tres"
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "culeros",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "cretino",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "cretina",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "tarupido",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "tarupida",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "mongolo",
+      "falsas_offendes": 2,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 2,
+      "aceptada": true,
+      "ejemplo_falsa": "wismichu: *me puse pantalones*   yo: *aleluyaaaa aleluuyaaaa*  mis amigos mientras lo veo:"
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "mongola",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 5,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "anormal",
+      "falsas_offendes": 3,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 1,
+      "aceptada": false,
+      "ejemplo_falsa": "dalas por favor!!! no le hagas video a zorrito youtubero por que eso es lo que el quiere q"
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "anormales",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "lameculos",
+      "falsas_offendes": 2,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 1,
+      "aceptada": true,
+      "ejemplo_falsa": "toma mi like javi, hablar de esto es de valiente, y mas alguien como tu, que si hubieras s"
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "chupamedias",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "puto",
+      "falsas_offendes": 602,
+      "falsas_sinteticos": 13,
+      "nuevos_ofensivos": 131,
+      "aceptada": false,
+      "ejemplo_falsa": "javi, te recuerdo que les donaron 15 millones de euros a los medios informativos exactamen"
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "putos",
+      "falsas_offendes": 64,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 18,
+      "aceptada": false,
+      "ejemplo_falsa": "jajaja tio, no es que se ve 1 video, no, se ve todos los putos directos ufff que fuerte, m"
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "joto",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 1,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "jotos",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "playo",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "playos",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "travelo",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "machorra",
+      "falsas_offendes": 2,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": "me alegra tanto verlas tan feliz espero que haigan pasado una hermosa navidad y un prosper"
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "sudaca",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "sudacas",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "malparidos",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 1,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "pedazo de mierda",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "saco de mierda",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "bueno para nada",
+      "falsas_offendes": 1,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": "hola javi, me llamo daan, mucho gusto bien ojala windy reflexione y se arregle todo. como "
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "buena para nada",
+      "falsas_offendes": 1,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": "no se que es mas absurdo, si la nina esta buena para nada lloriqueando porque \"le han copi"
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "muerto de hambre",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 1,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "muerta de hambre",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "insulto",
+      "candidata": "cerebro de mosquito",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "dano",
+      "candidata": "torturar",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "dano",
+      "candidata": "envenenar",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "dano",
+      "candidata": "linchar",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "dano",
+      "candidata": "descuartizar",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "dano",
+      "candidata": "estrangular",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "dano",
+      "candidata": "fusilar",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "dano",
+      "candidata": "acribillar",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "dano",
+      "candidata": "rematar",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "dano",
+      "candidata": "volar los sesos",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "dano",
+      "candidata": "volarle los sesos",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "dano",
+      "candidata": "volarle la cabeza",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "dano",
+      "candidata": "sacar los ojos",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "dano",
+      "candidata": "sacarle los ojos",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "dano",
+      "candidata": "mandar al hospital",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "dano",
+      "candidata": "mandarte al hospital",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "dano",
+      "candidata": "cortar la cara",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "dano",
+      "candidata": "cortarle la cara",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "dano",
+      "candidata": "desfigurar",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "dano",
+      "candidata": "dejar en silla de ruedas",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "dano",
+      "candidata": "dejarte en silla de ruedas",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "dano",
+      "candidata": "quebrar",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "dano",
+      "candidata": "pelar",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "amenaza",
+      "candidata": "\\bte quiero (ver )?(muerto|muerta|bajo tierra)\\b",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "amenaza",
+      "candidata": "\\bno (sabes|sabis|sabe) con quien te (metiste|estas metiendo)\\b",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "amenaza",
+      "candidata": "\\bte (voy|vamos) a hacer la vida (imposible|un infierno|cuadritos)\\b",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "amenaza",
+      "candidata": "\\b(voy|vamos) a hacer que te arrepientas\\b",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "amenaza",
+      "candidata": "\\bte va a pesar\\b",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "amenaza",
+      "candidata": "\\bte (tengo|tenemos) (vigilado|vigilada|fichado|fichada)\\b|\\bte (estoy|estamos) vigilando\\b",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 1,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "amenaza",
+      "candidata": "\\bcuid(a|ate|ese) a tu (familia|mama|hija|hijo|novia|esposa)\\b",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "amenaza",
+      "candidata": "\\bsi no\\b.{0,40}\\b(publico|subo|paso|mando|reenvio) (tus|las|esas) (fotos|videos|nudes)\\b",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "amenaza",
+      "candidata": "\\b(voy|vamos) a (publicar|subir|filtrar) tus (fotos|videos|nudes)\\b",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "amenaza",
+      "candidata": "\\b(vas|van) a amanecer (muerto|muerta|con la boca llena de moscas|en una zanja)\\b",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "amenaza",
+      "candidata": "\\bte (voy|vamos) a mandar a matar\\b|\\bte mando a matar\\b",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "amenaza",
+      "candidata": "\\bte (voy|vamos) a dejar (como coladera|sin dientes|tieso|tiesa)\\b",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "ilicito",
+      "candidata": "\\b(lavar|lavo|lavamos|lavando) (plata|dinero|la plata|el dinero)\\b|\\blavado de (dinero|activos)\\b",
+      "falsas_offendes": 1,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": "un politico puede decir que el no sabia que se manejaba lavado de dinero en su campana aun"
+    },
+    {
+      "categoria": "ilicito",
+      "candidata": "\\b(falsificar|falsifico|falsificamos|falsificando) (documentos|billetes|la cedula|cedulas|firmas|la firma|pasaportes)\\b",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "ilicito",
+      "candidata": "\\b(trafico|trata) de (personas|armas|organos)\\b",
+      "falsas_offendes": 1,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": "dalas hablas sobre lo de jimena que se mando otra cagada, sobre \"\"la trata de personas\"\""
+    },
+    {
+      "categoria": "ilicito",
+      "candidata": "\\b(bajarle|bajarte|le bajamos|le bajaron) el (cel|celular|telefono|carro|bolso)\\b",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "ilicito",
+      "candidata": "\\b(vender|vendo|vende|vendemos|venden|conseguir|consigo|comprar|compro)\\b.{0,25}\\b(monte|porro|porros|tachas|molly|lsd|ketamina|keta|anfetaminas|bareta)\\b",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "ilicito",
+      "candidata": "\\b(vender|vendo|vende|vendemos|conseguir|consigo|comprar|compro)\\b.{0,20}\\b(cuete|cuetes|fierro|revolver|escopeta|chaleco antibalas)\\b",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "ilicito",
+      "candidata": "\\b(pagar|pague|pagamos) (un|a un) sicario\\b",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    },
+    {
+      "categoria": "ilicito",
+      "candidata": "\\bhay que (desaparecer|quitar del medio) a\\b",
+      "falsas_offendes": 0,
+      "falsas_sinteticos": 0,
+      "nuevos_ofensivos": 0,
+      "aceptada": true,
+      "ejemplo_falsa": ""
+    }
+  ],
+  "aceptadas": {
+    "insulto": [
+      "tarados",
+      "taradas",
+      "huevones",
+      "zorras",
+      "maricones",
+      "fracasados",
+      "fracasadas",
+      "lacras",
+      "babosa",
+      "babosos",
+      "mamona",
+      "malnacido",
+      "malnacida",
+      "malnacidos",
+      "hijueputas",
+      "hijos de puta",
+      "hijo e puta",
+      "carepicha",
+      "carapicha",
+      "mamaguevo",
+      "mamahuevo",
+      "mamahuevos",
+      "comemierda",
+      "comemierdas",
+      "culero",
+      "culera",
+      "culeros",
+      "cretino",
+      "cretina",
+      "tarupido",
+      "tarupida",
+      "mongolo",
+      "mongola",
+      "anormales",
+      "lameculos",
+      "chupamedias",
+      "joto",
+      "jotos",
+      "playo",
+      "playos",
+      "travelo",
+      "machorra",
+      "sudaca",
+      "sudacas",
+      "malparidos",
+      "pedazo de mierda",
+      "saco de mierda",
+      "bueno para nada",
+      "buena para nada",
+      "muerto de hambre",
+      "muerta de hambre",
+      "cerebro de mosquito"
+    ],
+    "dano": [
+      "torturar",
+      "envenenar",
+      "linchar",
+      "descuartizar",
+      "estrangular",
+      "fusilar",
+      "acribillar",
+      "rematar",
+      "volar los sesos",
+      "volarle los sesos",
+      "volarle la cabeza",
+      "sacar los ojos",
+      "sacarle los ojos",
+      "mandar al hospital",
+      "mandarte al hospital",
+      "cortar la cara",
+      "cortarle la cara",
+      "desfigurar",
+      "dejar en silla de ruedas",
+      "dejarte en silla de ruedas",
+      "quebrar",
+      "pelar"
+    ],
+    "amenaza": [
+      "\\bte quiero (ver )?(muerto|muerta|bajo tierra)\\b",
+      "\\bno (sabes|sabis|sabe) con quien te (metiste|estas metiendo)\\b",
+      "\\bte (voy|vamos) a hacer la vida (imposible|un infierno|cuadritos)\\b",
+      "\\b(voy|vamos) a hacer que te arrepientas\\b",
+      "\\bte va a pesar\\b",
+      "\\bte (tengo|tenemos) (vigilado|vigilada|fichado|fichada)\\b|\\bte (estoy|estamos) vigilando\\b",
+      "\\bcuid(a|ate|ese) a tu (familia|mama|hija|hijo|novia|esposa)\\b",
+      "\\bsi no\\b.{0,40}\\b(publico|subo|paso|mando|reenvio) (tus|las|esas) (fotos|videos|nudes)\\b",
+      "\\b(voy|vamos) a (publicar|subir|filtrar) tus (fotos|videos|nudes)\\b",
+      "\\b(vas|van) a amanecer (muerto|muerta|con la boca llena de moscas|en una zanja)\\b",
+      "\\bte (voy|vamos) a mandar a matar\\b|\\bte mando a matar\\b",
+      "\\bte (voy|vamos) a dejar (como coladera|sin dientes|tieso|tiesa)\\b"
+    ],
+    "ilicito": [
+      "\\b(lavar|lavo|lavamos|lavando) (plata|dinero|la plata|el dinero)\\b|\\blavado de (dinero|activos)\\b",
+      "\\b(falsificar|falsifico|falsificamos|falsificando) (documentos|billetes|la cedula|cedulas|firmas|la firma|pasaportes)\\b",
+      "\\b(trafico|trata) de (personas|armas|organos)\\b",
+      "\\b(bajarle|bajarte|le bajamos|le bajaron) el (cel|celular|telefono|carro|bolso)\\b",
+      "\\b(vender|vendo|vende|vendemos|venden|conseguir|consigo|comprar|compro)\\b.{0,25}\\b(monte|porro|porros|tachas|molly|lsd|ketamina|keta|anfetaminas|bareta)\\b",
+      "\\b(vender|vendo|vende|vendemos|conseguir|consigo|comprar|compro)\\b.{0,20}\\b(cuete|cuetes|fierro|revolver|escopeta|chaleco antibalas)\\b",
+      "\\b(pagar|pague|pagamos) (un|a un) sicario\\b",
+      "\\bhay que (desaparecer|quitar del medio) a\\b"
+    ]
+  }
+}
