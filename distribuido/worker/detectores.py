@@ -45,6 +45,11 @@ except ImportError:
 
 from comun import config
 
+# Con WA_DISPOSITIVO=cpu se oculta la GPU ANTES de importar torch: si no, pysentimiento (transformers)
+# usa la GPU igual cuando la hay. Así un nodo configurado como "solo CPU" lo es de verdad (M5).
+if config("WA_DISPOSITIVO", "auto") == "cpu" and config("WA_WHISPER_DISPOSITIVO", "cpu") == "cpu":
+    os.environ["CUDA_VISIBLE_DEVICES"] = ""
+
 SEVERIDAD = {"amenaza": "alta", "arma": "alta", "ilicito": "alta", "agresion": "media", "odio": "media", "insulto": "media"}
 UMBRAL_TEXTO = float(config("WA_UMBRAL_TEXTO", "0.5"))
 UMBRAL_IMAGEN = float(config("WA_UMBRAL_IMAGEN", "0.10"))   # elegido con docs/mediciones/imagen_yolo.md

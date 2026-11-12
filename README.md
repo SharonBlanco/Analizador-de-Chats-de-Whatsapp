@@ -43,7 +43,7 @@ La plataforma importa conversaciones exportadas de WhatsApp (texto, fotos y nota
 | **M2 · Planificación** | Planificador con 4 niveles de prioridad y políticas FIFO, prioridad y aging (`WA_POLITICA`), con pruebas unitarias. | `distribuido/planificador.py`, `distribuido/tests/` |
 | **M3 · E/S y almacenamiento** | Implementado y medido: almacén por contenido (SHA-256) con deduplicación por enlaces duros, transferencia por bloques verificados, receptor asíncrono (asyncio) y cola acotada con contrapresión. | [docs/modulo-M3-almacenamiento.md](docs/modulo-M3-almacenamiento.md), `mensajeria/almacen.py`, `mensajeria/receptor.py`, `distribuido/m3/` |
 | **M4 · Seguridad** | Pendiente. Ya hay: credenciales fuera del código, token para los adjuntos, workers sin root y contenedor de solo lectura. | — |
-| **M5 · Cómputo heterogéneo** | Mediciones de CPU frente a GPU hechas; falta la política de *routing* y la ficha. | [docs/mediciones/](docs/mediciones/) |
+| **M5 · Cómputo heterogéneo** | Medido CPU frente a GPU (texto 5,2×, fotos 11,3×, audio 6,7×) y cuantización; política de *routing* definida con esos datos (falta integrarla en el despachador junto con M2). | [docs/modulo-M5-heterogeneo.md](docs/modulo-M5-heterogeneo.md), `distribuido/m5/` |
 
 ## Puesta en marcha
 
@@ -121,6 +121,7 @@ exportar_whatsapp.py   exportación automática desde un teléfono Android (uiau
 | [docs/guia_equipo.md](docs/guia_equipo.md) | Instalación paso a paso y problemas frecuentes |
 | [docs/modulo-M1-memoria.md](docs/modulo-M1-memoria.md) | Ficha de evidencia de M1 |
 | [docs/modulo-M3-almacenamiento.md](docs/modulo-M3-almacenamiento.md) | Ficha de evidencia de M3 |
+| [docs/modulo-M5-heterogeneo.md](docs/modulo-M5-heterogeneo.md) | Ficha de evidencia de M5 |
 | [docs/mediciones/](docs/mediciones/) | Mediciones de los detectores (texto, YOLO, Whisper) y de M1 |
 | [docs/dataset.md](docs/dataset.md) | Dataset: fuentes, licencias y ground truth |
 | [docs/reutilizacion.md](docs/reutilizacion.md) | Qué se reutilizó del I Proyecto |

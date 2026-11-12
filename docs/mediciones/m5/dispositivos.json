@@ -1,0 +1,75 @@
+[
+  {
+    "modelo": "texto",
+    "dispositivo": "cpu",
+    "dispositivo_real": "cpu",
+    "elementos": 512,
+    "segundos": 27.041,
+    "latencia_ms": 52.81,
+    "throughput_s": 18.93,
+    "carga_s": 5.67,
+    "ram_mb": 1565.1
+  },
+  {
+    "modelo": "texto",
+    "dispositivo": "cuda",
+    "dispositivo_real": "cuda",
+    "elementos": 512,
+    "segundos": 5.232,
+    "latencia_ms": 10.22,
+    "throughput_s": 97.87,
+    "carga_s": 7.0,
+    "ram_mb": 2286.8,
+    "vram_mb": 688
+  },
+  {
+    "modelo": "imagen",
+    "dispositivo": "cpu",
+    "dispositivo_real": "cpu",
+    "elementos": 30,
+    "segundos": 13.499,
+    "latencia_ms": 449.98,
+    "throughput_s": 2.22,
+    "carga_s": 1.88,
+    "ram_mb": 1446.0
+  },
+  {
+    "modelo": "imagen",
+    "dispositivo": "cuda",
+    "dispositivo_real": "cuda",
+    "elementos": 30,
+    "segundos": 1.199,
+    "latencia_ms": 39.96,
+    "throughput_s": 25.03,
+    "carga_s": 1.64,
+    "ram_mb": 1924.0,
+    "vram_mb": 368
+  },
+  {
+    "modelo": "audio",
+    "dispositivo": "cpu",
+    "dispositivo_real": "cpu",
+    "elementos": 15,
+    "segundos": 24.38,
+    "latencia_ms": 1625.32,
+    "throughput_s": 0.62,
+    "carga_s": 3.07,
+    "ram_mb": 1390.9,
+    "audio_s": 169.3,
+    "veces_tiempo_real": 6.9
+  },
+  {
+    "modelo": "audio",
+    "dispositivo": "cuda",
+    "dispositivo_real": "cuda",
+    "elementos": 15,
+    "segundos": 3.618,
+    "latencia_ms": 241.2,
+    "throughput_s": 4.15,
+    "carga_s": 1.74,
+    "ram_mb": 1514.9,
+    "vram_mb": 370,
+    "audio_s": 169.3,
+    "veces_tiempo_real": 46.8
+  }
+]
