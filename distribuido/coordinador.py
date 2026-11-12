@@ -159,6 +159,21 @@ class Plataforma:
         finally:
             conexion.close()
 
+    def _despachar(self) -> bool:
+        """Selecciona y publica una subtarea pendiente de M2.
+
+        Debe llamarse con self.lock adquirido.
+        """
+        tarea = self.planificador.siguiente()
+        if tarea is None:
+            return False
+        try:
+            self._publicar([tarea.datos])
+        except Exception:
+            self.planificador.agregar(tarea)
+            raise
+        return True
+
     def _escuchar(self) -> None:
         """Hilo que consume la cola de resultados y los latidos. Se reconecta solo."""
         primera = True

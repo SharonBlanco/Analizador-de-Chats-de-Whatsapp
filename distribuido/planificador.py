@@ -43,6 +43,12 @@ class Planificador:
         tarea.orden = next(self._contador)
         self.colas[tarea.prioridad].append(tarea)
 
+    def devolver(self, tarea):
+        """Reinserta una tarea conservando su orden y llegada originales."""
+        if not 1 <= tarea.prioridad <= 4:
+            raise ValueError("La prioridad debe estar entre 1 y 4")
+        self.colas[tarea.prioridad].append(tarea)
+
     def prioridad_efectiva(self, tarea, ahora=None):
         if ahora is None:
             ahora = time.monotonic()
