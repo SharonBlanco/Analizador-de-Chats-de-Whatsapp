@@ -114,6 +114,8 @@ class Plataforma:
             intervalo_aging=float(config("WA_INTERVALO_AGING", "10"))
         )
         self.workers: dict[str, dict] = {}
+        # M2: subtareas publicadas que aún no han finalizado.
+        self.despachadas: set[str] = set()
         self.alertas: deque = deque(maxlen=200)       # notificaciones asíncronas (B.4)
         self._n_alerta = 0
         self.conectado = False
