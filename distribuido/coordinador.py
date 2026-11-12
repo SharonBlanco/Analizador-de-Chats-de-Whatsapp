@@ -630,6 +630,38 @@ class Plataforma:
         print(f"[plataforma] {id_} reanudado: {len(pendientes)} sub-tareas")
         return self.detalle(id_)
 
+    def cancelar_todos(self) -> dict:
+        """Cancela todos los procesamientos que siguen en curso (en cola o corriendo)."""
+        with self.lock:
+            ids = [i for i, t in self.trabajos.items() if t["estado"] not in FINALES_TR]
+        hechos = 0
+        for i in ids:
+            try:
+                self.cancelar(i)
+                hechos += 1
+            except ErrorTrabajo:
+                pass                     # terminó justo antes de cancelarlo
+        return {"cancelados": hechos}
+
+    def reanudar_todos(self) -> dict:
+        """Reanuda, por conversación, SOLO su procesamiento más reciente si quedó cancelado, fallido o
+        parcial. Los más viejos no: ya fueron reemplazados por uno nuevo y reanudarlos repetiría trabajo."""
+        with self.lock:
+            ultimo: dict[str, dict] = {}
+            for t in self.trabajos.values():
+                if t["caso"] not in ultimo or t["creado"] > ultimo[t["caso"]]["creado"]:
+                    ultimo[t["caso"]] = t
+            ids = [t["id"] for t in ultimo.values()
+                   if t["estado"] in ("cancelled", "failed", "partially_completed")]
+        hechos, errores = 0, []
+        for i in ids:
+            try:
+                self.reanudar(i)
+                hechos += 1
+            except ErrorTrabajo as e:
+                errores.append(f"{i}: {e}")
+        return {"reanudados": hechos, "errores": errores}
+
     # ============================================================ flujo de tareas
     def _procesar(self, msg: dict) -> str | None:
         """Aplica un mensaje de un worker. Devuelve el id del trabajo si hay que repetir

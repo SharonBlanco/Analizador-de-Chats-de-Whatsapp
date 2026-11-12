@@ -407,6 +407,7 @@ details.ayuda-tel ol { font-size: 12.5px; color: var(--texto); padding-left: 18p
   <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3.5" width="6" height="11" rx="3"/><path d="M6 11.5a6 6 0 0 0 12 0M12 17.5v3"/></symbol>
   <symbol id="i-alerta" viewBox="0 0 24 24"><path d="M12 4 3 19.5h18L12 4Z"/><path d="M12 10v4M12 17h.01"/></symbol>
   <symbol id="i-papelera" viewBox="0 0 24 24"><path d="M4.5 7h15M10 7V4.5h4V7M6.5 7l1 12.5h9l1-12.5"/></symbol>
+  <symbol id="i-cerrar" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></symbol>
   <symbol id="i-flecha" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
   <symbol id="i-bandera" viewBox="0 0 24 24"><path d="M5.5 21V4.5M5.5 5h11l-2 4 2 4h-11"/></symbol>
   <symbol id="i-campana" viewBox="0 0 24 24"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15L6 16.5ZM10 20a2 2 0 0 0 4 0"/></symbol>
@@ -1725,9 +1726,34 @@ function cuerpoWorkers() {
   <section class="panel tabla-scroll" style="margin-top:20px"><div class="panel-cab" style="padding-bottom:12px"><div><h2>Workers</h2>
     <p class="panel-desc">Todos los workers que se conectaron alguna vez. Pasa a "desconectado" si no envía latidos durante 15 s; su historial se conserva.</p></div></div>${tablaWorkers(p.workers)}</section>
   <section class="panel tabla-scroll" style="margin-top:20px"><div class="panel-cab" style="padding-bottom:12px"><div><h2>Trabajos recientes</h2>
-    <p class="panel-desc">Procesamientos en paralelo de todas las conversaciones</p></div></div>
+    <p class="panel-desc">Procesamientos en paralelo de todas las conversaciones</p></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">${(() => {
+      const enCurso = p.trabajos.filter(t => !FINAL_TR.has(t.estado)).length, reanudables = trabajosReanudables(p.trabajos).length;
+      return `<button class="btn btn-chico" id="btnCancelarTodos" ${enCurso ? "" : "disabled"}
+          title="Cancela todos los procesamientos en cola o en curso">${icono("cerrar")}Cancelar todos (${fmtN(enCurso)})</button>
+        <button class="btn btn-primario btn-chico" id="btnReanudarTodos" ${reanudables ? "" : "disabled"}
+          title="Por conversación, reanuda su procesamiento más reciente si quedó cancelado, fallido o parcial. Lo ya terminado se conserva.">${icono("division")}Reanudar todos (${fmtN(reanudables)})</button>`; })()}</div></div>
     ${p.trabajos.length ? tablaTrabajos(p.trabajos, true) : `<div class="vacio">Todavía no se ha dividido ninguna conversación.</div>`}</section>`;
 }
+/** Por conversación, el procesamiento más reciente si quedó cancelado, fallido o parcial (lo mismo que reanuda el servidor). */
+function trabajosReanudables(ts) {
+  const ultimo = {};
+  for (const t of ts) if (!ultimo[t.caso] || t.creado > ultimo[t.caso].creado) ultimo[t.caso] = t;
+  return Object.values(ultimo).filter(t => ["cancelled", "failed", "partially_completed"].includes(t.estado));
+}
+document.addEventListener("click", async e => {
+  const b = e.target.closest("#btnCancelarTodos, #btnReanudarTodos");
+  if (!b) return;
+  const cancelar = b.id === "btnCancelarTodos";
+  if (!confirm(cancelar ? "¿Cancelar TODOS los procesamientos en curso?"
+                        : "¿Reanudar el último procesamiento de cada conversación que quedó cancelado o con fallos?")) return;
+  b.disabled = true;
+  try {
+    const r = await api(`/api/trabajos/${cancelar ? "cancelar_todos" : "reanudar_todos"}`, {method: "POST"});
+    if (r.errores?.length) alert(`Reanudados: ${r.reanudados}\nNo se pudieron reanudar:\n${r.errores.join("\n")}`);
+    await cargarPlataforma(); pintar($("#workersCuerpo"), cuerpoWorkers());
+  } catch (err) { alert(err.message); b.disabled = false; }
+});
 function enlazarWorkers() {
   const refrescar = async () => { await cargarPlataforma(); pintar($("#workersCuerpo"), cuerpoWorkers()); };
   refrescar();
