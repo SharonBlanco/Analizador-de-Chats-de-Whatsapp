@@ -41,3 +41,4 @@ dataset_generado/
 
 # Pesos de modelos descargados (YOLO)
 *.pt
+docs/mediciones/m1/**/.trabajos/

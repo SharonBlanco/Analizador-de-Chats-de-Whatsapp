@@ -18,8 +18,9 @@ registra cuánto tardaron y cuánta memoria agregaron (evidencia para el módulo
 
 Configuración (variables de entorno o distribuido/config.env):
   WA_DISPOSITIVO=auto|cpu|cuda      dónde corren los modelos (auto: GPU si hay)
-  WA_WHISPER_MODELO=small           tiny | base | small | medium
-  WA_WHISPER_PRECISION=auto         int8 | float16 | float32 (auto: float16 en GPU, int8 en CPU)
+  WA_WHISPER_MODELO=auto            auto: medium en GPU, small en CPU (ver docs/mediciones/audio_whisper.md)
+                                    o uno fijo: tiny | base | small | medium | large-v3-turbo
+  WA_WHISPER_PRECISION=auto         int8 | int8_float16 | float16 | float32 (auto: int8_float16 en GPU, int8 en CPU)
   WA_YOLO_MODELO=yolov8l-oiv7.pt    yolov8{n,s,m,l,x}-oiv7.pt (l: mejor F1, ver docs/mediciones/imagen_yolo.md)
   WA_TEXTO_MODELO=1                  0 = texto solo con reglas e insultos (sin modelo: ~100 veces más rápido)
   WA_UMBRAL_TEXTO=0.5  WA_UMBRAL_IMAGEN=0.10
@@ -44,7 +45,7 @@ except ImportError:
 
 from comun import config
 
-SEVERIDAD = {"amenaza": "alta", "arma": "alta", "agresion": "media", "odio": "media", "insulto": "media"}
+SEVERIDAD = {"amenaza": "alta", "arma": "alta", "ilicito": "alta", "agresion": "media", "odio": "media", "insulto": "media"}
 UMBRAL_TEXTO = float(config("WA_UMBRAL_TEXTO", "0.5"))
 UMBRAL_IMAGEN = float(config("WA_UMBRAL_IMAGEN", "0.10"))   # elegido con docs/mediciones/imagen_yolo.md
 CLASES_ARMA = {"Handgun", "Rifle", "Shotgun", "Weapon", "Knife", "Kitchen knife", "Dagger", "Sword"}
@@ -102,12 +103,33 @@ def modelos_cargados() -> dict:
     return dict(_cargas)
 
 
+# Lo que decidió el plan de memoria del worker (M1, memoria.planificar): si el modelo de texto o
+# el Whisper preferido no caben en el límite del nodo, se usa la alternativa más liviana.
+_forzado: dict = {}
+
+
+def configurar(texto_modelo: bool | None = None, whisper: str | None = None) -> None:
+    if texto_modelo is not None:
+        _forzado["texto_modelo"] = texto_modelo
+    if whisper:
+        _forzado["whisper"] = whisper
+
+
 # ============================================================ texto
 # Reglas de amenaza (texto sin tildes y en minúscula). Cubren voseo y tuteo.
+_DANO = (r"(matar|asesinar|apunalar|acuchillar|balear|disparar|golpear|reventar|quemar|secuestrar|violar|"
+         r"ahorcar|degollar|desaparecer|partir la madre|partirle la madre|romper la cara|romperle la cara)")
+# usos inofensivos de esos verbos ("matar el tiempo", "matar el hambre")
+_NO_DANO = r"(?!\w*\s+(el tiempo|el rato|el hambre|la sed|el aburrimiento|la espera|los nervios))"
 AMENAZAS = [
+    # intención de dañar a alguien: "voy a matar a alguien", "lo vamos a quemar", "pienso matarlo", "te voy a golpear".
+    # Sin "me": "me voy a matar estudiando" es una exageración, no una amenaza a otro.
+    rf"\b(?<!me )(?<!nos )(?:(?:te|lo|la|los|las|le|les)\s+)?(?:voy|vamos|pienso|pensamos|quiero|queremos)\s+a?\s*{_DANO}{_NO_DANO}",
+    # "van a" solo dirigido a la persona ("te van a matar"); "le van a matar los oídos" es una exageración
+    rf"\bte\s+van\s+a\s+{_DANO}{_NO_DANO}",
+    r"\b(?:te|le|les)\s+(?:voy|vamos|van)\s+a\s+(?:dar|meter|pegar)\s+(?:un|una)\s+(?:tiro|balazo|punalada|navajazo|paliza|golpiza)",
     # "te voy a buscar/encontrar" queda fuera: casi siempre es benigno ("te voy a buscar a la parada")
-    r"\bte (voy|vamos) a (matar|partir la|reventar|quebrar|destruir|hacer pagar|joder|romper la)",
-    r"\b(te|lo|la|los|las) (mato|parto|reviento|quiebro|rajo)\b",
+    r"\bte (voy|vamos) a (partir la|reventar|quebrar|destruir|hacer pagar|joder|romper la)",
     r"\b(vas|van) a (pagar|morir|sufrir|arrepentir|terminar (muy )?mal|ver lo que)",
     r"\bte vas a arrepentir",
     r"\b(se|sabemos) donde (vivis|vives|vive|trabaj|estudi|esta tu)",
@@ -118,12 +140,30 @@ AMENAZAS = [
     r"\bno (me hago|respondo) responsable\b|\bno respondo\b",
     r"\bmas te vale\b.*\bo (vas|te)\b",
     r"\bla proxima (vez )?no te la vas a acabar\b",
-    r"\b(cuidate|cuidese|ten cuidado)\b.*\b(se|sabemos|vas|te)\b",
     # deseos de muerte o de daño ("ojalá se mueran", "deberían matarlos")
     r"\bojala (te|se|lo|la|los|las) (muera|mueran|maten|mate|pudra|pudran)\b",
     r"\b(deberian|habria que|hay que) (matar|matarlos|matarlas|matarte|quemar|quemarlos)\b",
 ]
 _RE_AMENAZA = [re.compile(p) for p in AMENAZAS]
+
+# Indicios de actividades ilícitas (enunciado B.3: "violencia, amenazas o actividades ilícitas").
+# Mencionarlas ya es un indicio, aunque la frase venga negada ("no voy a vender drogas").
+_DROGA = r"(droga|drogas|coca|cocaina|marihuana|mota|crack|piedra|perico|tusi|cristal|metanfetamina|fentanilo|heroina)"
+ILICITOS = [
+    rf"\b(vender|vendo|vende|vendes|vendemos|venden|vendiendo|mover|muevo|mueve|movemos|mueven|moviendo|pasar|paso|pasando|"
+    rf"distribuir|distribuyendo|traficar|trafico|traficando|"
+    rf"conseguir|consigo|comprar|compro)\b.{{0,25}}\b{_DROGA}\b",
+    r"\b(narcotrafico|narcomenudeo|narco)\b",
+    r"\b(asaltar|atracar|robar|robarle|asaltarlo|asaltarla)\b\s+(a\s+)?(una persona|alguien|un|una|el|la|ese|esa|esos|esas|ellos|ellas|la casa|el banco|la tienda|el carro)\b",
+    r"\b(voy|vamos|hay que|pienso|quiero|queremos)\s+a?\s*(asaltar|atracar|robar)\b",
+    r"\b(cobrar|cobramos|cobran|pagar|paga|pagas|pagan|pague|paguen)\s+(la\s+)?(renta|vacuna|cuota de proteccion)\b|\bextorsi",
+    r"\b(mandar|mande|mandamos|pagar|pague)\s+a\s+matar\b|\bsicari",
+    r"\b(vendo|vender|consigo|conseguir|comprar|compro)\b.{0,20}\b(pistola|pistolas|arma|armas|fusil|rifle|balas|municiones|nueve milimetros)\b",
+]
+_RE_ILICITO = [re.compile(p) for p in ILICITOS]
+# Estas se buscan CON tildes: "la mato" (amenaza) ≠ "la mató" (narración en pasado)
+AMENAZAS_CON_TILDE = [r"\b(te|lo|la|los|las) (mato|parto|reviento|quiebro|rajo)\b"]
+_RE_AMENAZA_TILDE = [re.compile(p) for p in AMENAZAS_CON_TILDE]
 
 # Insultos frecuentes en español (incluye insultos machistas y homófobos, porque hay que detectarlos).
 # Se excluyen palabras con un uso cotidiano frecuente ("basura", "cerdo", "animal", "gordo"): en un chat
@@ -149,14 +189,20 @@ def analizar_textos(textos: list[str], usar_modelo: bool | None = None) -> list[
     """Para cada texto, la lista de hallazgos (vacía si no hay nada).
     usar_modelo=None → según WA_TEXTO_MODELO (0 = solo reglas e insultos, sin cargar el modelo)."""
     if usar_modelo is None:
-        usar_modelo = config("WA_TEXTO_MODELO", "1") not in ("0", "no", "false")
+        usar_modelo = _forzado.get("texto_modelo", config("WA_TEXTO_MODELO", "1") not in ("0", "no", "false"))
     resultados: list[list[dict]] = [[] for _ in textos]
     for i, t in enumerate(textos):
         limpio = _sin_tildes(t)
-        for patron in _RE_AMENAZA:
-            m = patron.search(limpio)
+        minuscula = t.lower()
+        for patron, texto in [(p, limpio) for p in _RE_AMENAZA] + [(p, minuscula) for p in _RE_AMENAZA_TILDE]:
+            m = patron.search(texto)
             if m:
                 resultados[i].append({"categoria": "amenaza", "motivo": f"regla: «{m.group(0)}»", "puntaje": 1.0})
+                break
+        for patron in _RE_ILICITO:
+            m = patron.search(limpio)
+            if m:
+                resultados[i].append({"categoria": "ilicito", "motivo": f"regla: «{m.group(0)}»", "puntaje": 1.0})
                 break
         m = _RE_INSULTO.search(limpio)
         if m:
@@ -215,17 +261,31 @@ def _precargar_cuda12() -> None:
                     pass
 
 
+def tamano_whisper(d: str) -> str:
+    """auto: medium en GPU (26× tiempo real; acierta más en notas de voz espontáneas) y small en CPU
+    (medium en CPU va a solo 2,3× tiempo real). Medido en docs/mediciones/audio_whisper.md."""
+    if _forzado.get("whisper"):
+        return _forzado["whisper"]
+    pedido = config("WA_WHISPER_MODELO", "auto")
+    return pedido if pedido != "auto" else ("medium" if d == "cuda" else "small")
+
+
+_whisper_nombre: list[str] = []
+
+
 def _modelo_whisper():
     import numpy as np
     from faster_whisper import WhisperModel
-    nombre = f"Whisper {config('WA_WHISPER_MODELO', 'small')}"
+    nombre = _whisper_nombre[0]
     disp = config("WA_WHISPER_DISPOSITIVO", dispositivo())
 
     def crear(d):
         precision = config("WA_WHISPER_PRECISION", "auto")
         if precision == "auto":
-            precision = "float16" if d == "cuda" else "int8"
-        return WhisperModel(config("WA_WHISPER_MODELO", "small"), device=d, compute_type=precision,
+            precision = "int8_float16" if d == "cuda" else "int8"
+        # el tamaño es el del nombre registrado: si la GPU falla, sigue el mismo modelo en CPU (más lento, pero
+        # así lo que dice la app y las mediciones coinciden con lo que de verdad corrió)
+        return WhisperModel(nombre.split()[1], device=d, compute_type=precision,
                             cpu_threads=int(config("WA_WHISPER_HILOS", "0")))
     if disp == "cuda":
         _precargar_cuda12()
@@ -251,7 +311,9 @@ def _decodificar(ruta: str):
 
 def analizar_audio(ruta: str) -> tuple[dict, list[dict]]:
     """→ (transcripción con segmentos, hallazgos con la hora del segmento)."""
-    modelo = _cargar(f"Whisper {config('WA_WHISPER_MODELO', 'small')}", _modelo_whisper)
+    if not _whisper_nombre:
+        _whisper_nombre.append(f"Whisper {tamano_whisper(config('WA_WHISPER_DISPOSITIVO', dispositivo()))}")
+    modelo = _cargar(_whisper_nombre[0], _modelo_whisper)
     segmentos, info = modelo.transcribe(_decodificar(ruta), language="es", beam_size=1)
     segmentos = [{"inicio": round(s.start, 2), "fin": round(s.end, 2), "texto": s.text.strip()} for s in segmentos]
     por_segmento = analizar_textos([s["texto"] for s in segmentos])
@@ -259,5 +321,14 @@ def analizar_audio(ruta: str) -> tuple[dict, list[dict]]:
     for seg, lista in zip(segmentos, por_segmento):
         for h in lista:
             hallazgos.append({**h, "inicio": seg["inicio"], "fin": seg["fin"], "texto": seg["texto"]})
+    # Whisper corta el audio en segmentos: una frase partida ("voy a matar" | "a ese mae") se analiza
+    # también uniendo cada par de segmentos seguidos. Solo se agregan categorías que no aparecieron.
+    ya = {h["categoria"] for h in hallazgos}
+    pares = [(a_, b_) for a_, b_ in zip(segmentos, segmentos[1:])]
+    for (a_, b_), lista in zip(pares, analizar_textos([f"{a_['texto']} {b_['texto']}" for a_, b_ in pares], usar_modelo=False)):
+        for h in lista:
+            if h["categoria"] not in ya:
+                ya.add(h["categoria"])
+                hallazgos.append({**h, "inicio": a_["inicio"], "fin": b_["fin"], "texto": f"{a_['texto']} {b_['texto']}"})
     return {"transcripcion": " ".join(s["texto"] for s in segmentos), "segmentos": segmentos,
             "duracion_s": round(info.duration, 2)}, hallazgos

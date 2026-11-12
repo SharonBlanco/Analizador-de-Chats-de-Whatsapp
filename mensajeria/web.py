@@ -35,6 +35,7 @@ from importar import ErrorImportacion, importar  # noqa: E402
 from whatsapp_formato import parsear_archivo  # noqa: E402
 from estadisticas import calcular as calcular_estadisticas  # noqa: E402
 from organizacion import ErrorOrganizacion, Organizacion  # noqa: E402
+import telefono  # noqa: E402  (importar desde un teléfono Android por USB)
 
 # Procesamiento en paralelo (distribuido/). Requiere pika; sin él, la interfaz funciona
 # igual y la sección de workers explica qué falta.
@@ -245,6 +246,17 @@ class Manejador(BaseHTTPRequestHandler):
             self._json({"caso": carpeta.name, "metadata": meta, "mensajes": mensajes,
                         "estadisticas": calcular_estadisticas(parseados),
                         "carpeta": ORG.carpeta_de(carpeta.name)})
+        elif partes == ["api", "telefono"]:
+            self._json(telefono.dispositivos())
+        elif partes == ["api", "telefono", "chats"]:
+            serial = (qs.get("serial") or [""])[0]
+            try:
+                self._json({"chats": telefono.chats_recientes(serial)})
+            except Exception as e:  # noqa: BLE001 — se muestra en la interfaz
+                self._error(f"No se pudieron leer los chats del teléfono: {e}")
+        elif len(partes) == 4 and partes[:3] == ["api", "telefono", "trabajos"]:
+            t = telefono.estado(partes[3])
+            self._json(t) if t else self._error("No existe", 404)
         elif partes == ["api", "hallazgos"]:
             existentes = {c.name for c in carpetas_de_casos()}
             datos = PLATAFORMA.hallazgos_globales() if PLATAFORMA else {"casos": {}, "hallazgos": []}
@@ -315,6 +327,8 @@ class Manejador(BaseHTTPRequestHandler):
                 return self._importar(self._leer_json())
             if partes == ["api", "pegar"]:
                 return self._pegar(self._leer_json())
+            if partes == ["api", "telefono", "importar"]:
+                return self._importar_telefono(self._leer_json())
             if partes == ["api", "carpetas"]:
                 return self._json(ORG.crear(self._leer_json().get("nombre", "")))
             if len(partes) == 4 and partes[:2] == ["api", "carpetas"] and partes[3] == "renombrar":
@@ -390,6 +404,25 @@ class Manejador(BaseHTTPRequestHandler):
             self._ejecutar_importacion(entrada, nombre_entrada, d)
         finally:
             shutil.rmtree(carpeta, ignore_errors=True)
+
+    def _importar_telefono(self, d: dict):
+        """Exporta un chat del teléfono por USB y lo importa (en segundo plano)."""
+        if not d.get("declaro"):
+            raise ErrorImportacion("Falta la declaración de consentimiento: el chat debe ser del equipo y con contenido ficticio")
+
+        def importar_zip(ruta: Path) -> str:
+            caso = importar(ruta, DATASET, fuente="telefono", declaro=True, nombre=(d.get("nombre") or "").strip() or None,
+                            prioridad=int(d.get("prioridad") or 5), sobrescribir=bool(d.get("sobrescribir")),
+                            nombre_entrada=ruta.name)
+            if d.get("carpeta"):
+                ORG.mover([caso.name], d["carpeta"])
+            return caso.name
+        try:
+            id_ = telefono.iniciar(str(d.get("serial") or ""), str(d.get("chat") or ""),
+                                   bool(d.get("con_archivos", True)), importar_zip)
+        except ValueError as e:
+            raise ErrorImportacion(str(e)) from e
+        self._json({"id": id_})
 
     def _pegar(self, d: dict):
         texto = d.get("texto") or ""

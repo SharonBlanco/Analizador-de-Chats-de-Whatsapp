@@ -1,0 +1,462 @@
+{
+  "medido": "2026-11-12 03:33",
+  "equipo": "x86_64 · 20 núcleos · Python 3.11.18",
+  "base_mb": 24.3,
+  "componentes": {
+    "torch": 215.8,
+    "pysentimiento": 233.5,
+    "ultralytics": 29.6,
+    "faster_whisper": 46.6
+  },
+  "modelos": {
+    "texto": {
+      "requiere": [
+        "torch",
+        "pysentimiento"
+      ],
+      "carga_mb": 476.6,
+      "trabajo_mb": 818.1,
+      "queda_mb": 476.6,
+      "primera_inferencia_mb": 1280.9,
+      "medido_con": "256 mensajes"
+    },
+    "yolo": {
+      "requiere": [
+        "torch",
+        "ultralytics"
+      ],
+      "carga_mb": 580.2,
+      "trabajo_mb": 43.5,
+      "queda_mb": 577.1,
+      "primera_inferencia_mb": 623.7,
+      "medido_con": "5 fotos de Open Images"
+    },
+    "whisper-small": {
+      "requiere": [
+        "faster_whisper"
+      ],
+      "carga_mb": 663.5,
+      "trabajo_mb": 100.8,
+      "queda_mb": 663.5,
+      "primera_inferencia_mb": 764.2,
+      "medido_con": "3 audios de FLEURS"
+    },
+    "texto-reglas": {
+      "requiere": [],
+      "carga_mb": 0,
+      "trabajo_mb": 30,
+      "medido_con": "estimado"
+    },
+    "adjuntos": {
+      "requiere": [],
+      "carga_mb": 0,
+      "trabajo_mb": 20,
+      "medido_con": "estimado: descarga en bloques de 1 MB + ffprobe"
+    },
+    "whisper-medium": {
+      "requiere": [
+        "faster_whisper"
+      ],
+      "carga_mb": 1765.0,
+      "trabajo_mb": 426.0,
+      "queda_mb": 1540.0,
+      "primera_inferencia_mb": 1966.0,
+      "medido_con": "3 audios de FLEURS (1.ª corrida: una sola inferencia; en la 2.ª corrida el kernel lo mató por OOM con --memory=2g)"
+    }
+  },
+  "crudo": {
+    "base": {
+      "modelo": "base",
+      "inicio": {
+        "rss": 12.8,
+        "pss": 10.0,
+        "uss": 7.2,
+        "hwm": 12.8
+      },
+      "importar": {
+        "segundos": 0.04,
+        "antes": {
+          "rss": 12.8,
+          "pss": 10.0,
+          "uss": 7.2,
+          "hwm": 12.8
+        },
+        "despues": {
+          "rss": 24.3,
+          "pss": 21.5,
+          "uss": 18.8,
+          "hwm": 24.3
+        },
+        "delta_rss": 11.5,
+        "delta_pss": 11.5,
+        "pico_sobre_inicio": 11.5
+      },
+      "final": {
+        "rss": 24.3,
+        "pss": 21.5,
+        "uss": 18.8,
+        "hwm": 24.3
+      }
+    },
+    "torch": {
+      "modelo": "torch",
+      "inicio": {
+        "rss": 12.7,
+        "pss": 9.9,
+        "uss": 7.2,
+        "hwm": 12.7
+      },
+      "importar": {
+        "segundos": 0.93,
+        "antes": {
+          "rss": 12.8,
+          "pss": 10.0,
+          "uss": 7.2,
+          "hwm": 12.8
+        },
+        "despues": {
+          "rss": 228.4,
+          "pss": 225.6,
+          "uss": 222.8,
+          "hwm": 228.4
+        },
+        "delta_rss": 215.6,
+        "delta_pss": 215.6,
+        "pico_sobre_inicio": 215.6
+      },
+      "final": {
+        "rss": 228.4,
+        "pss": 225.6,
+        "uss": 222.8,
+        "hwm": 228.4
+      }
+    },
+    "whisper-small": {
+      "modelo": "whisper-small",
+      "inicio": {
+        "rss": 12.7,
+        "pss": 9.9,
+        "uss": 7.2,
+        "hwm": 12.7
+      },
+      "importar": {
+        "segundos": 0.24,
+        "antes": {
+          "rss": 12.7,
+          "pss": 9.9,
+          "uss": 7.2,
+          "hwm": 12.7
+        },
+        "despues": {
+          "rss": 59.3,
+          "pss": 56.5,
+          "uss": 53.6,
+          "hwm": 59.3
+        },
+        "delta_rss": 46.6,
+        "delta_pss": 46.6,
+        "pico_sobre_inicio": 46.6
+      },
+      "cargar": {
+        "segundos": 2.62,
+        "antes": {
+          "rss": 59.3,
+          "pss": 56.5,
+          "uss": 53.6,
+          "hwm": 59.3
+        },
+        "despues": {
+          "rss": 568.4,
+          "pss": 565.5,
+          "uss": 562.7,
+          "hwm": 616.8
+        },
+        "delta_rss": 509.1,
+        "delta_pss": 509.0,
+        "pico_sobre_inicio": 557.5
+      },
+      "inferencia": {
+        "segundos": 8.66,
+        "antes": {
+          "rss": 568.7,
+          "pss": 565.9,
+          "uss": 563.0,
+          "hwm": 568.7
+        },
+        "despues": {
+          "rss": 722.8,
+          "pss": 719.9,
+          "uss": 717.1,
+          "hwm": 823.5
+        },
+        "delta_rss": 154.1,
+        "delta_pss": 154.0,
+        "pico_sobre_inicio": 254.8
+      },
+      "inferencia2": {
+        "segundos": 8.42,
+        "antes": {
+          "rss": 722.8,
+          "pss": 719.9,
+          "uss": 717.1,
+          "hwm": 722.8
+        },
+        "despues": {
+          "rss": 722.7,
+          "pss": 719.9,
+          "uss": 717.0,
+          "hwm": 823.6
+        },
+        "delta_rss": -0.1,
+        "delta_pss": 0.0,
+        "pico_sobre_inicio": 100.8
+      },
+      "entrada": "3 audios de FLEURS",
+      "final": {
+        "rss": 722.7,
+        "pss": 719.9,
+        "uss": 717.0,
+        "hwm": 823.6
+      }
+    },
+    "texto": {
+      "modelo": "texto",
+      "inicio": {
+        "rss": 12.8,
+        "pss": 10.0,
+        "uss": 7.2,
+        "hwm": 12.8
+      },
+      "importar_torch": {
+        "segundos": 0.89,
+        "antes": {
+          "rss": 12.8,
+          "pss": 10.0,
+          "uss": 7.2,
+          "hwm": 12.8
+        },
+        "despues": {
+          "rss": 228.6,
+          "pss": 225.7,
+          "uss": 222.9,
+          "hwm": 228.6
+        },
+        "delta_rss": 215.8,
+        "delta_pss": 215.7,
+        "pico_sobre_inicio": 215.8
+      },
+      "importar": {
+        "segundos": 2.52,
+        "antes": {
+          "rss": 228.6,
+          "pss": 225.7,
+          "uss": 222.9,
+          "hwm": 228.6
+        },
+        "despues": {
+          "rss": 462.1,
+          "pss": 459.2,
+          "uss": 456.4,
+          "hwm": 462.1
+        },
+        "delta_rss": 233.5,
+        "delta_pss": 233.5,
+        "pico_sobre_inicio": 233.5
+      },
+      "cargar": {
+        "segundos": 0.32,
+        "antes": {
+          "rss": 462.1,
+          "pss": 459.2,
+          "uss": 456.4,
+          "hwm": 462.1
+        },
+        "despues": {
+          "rss": 493.4,
+          "pss": 490.5,
+          "uss": 487.6,
+          "hwm": 494.8
+        },
+        "delta_rss": 31.3,
+        "delta_pss": 31.3,
+        "pico_sobre_inicio": 32.7
+      },
+      "inferencia": {
+        "segundos": 2.22,
+        "antes": {
+          "rss": 493.4,
+          "pss": 490.5,
+          "uss": 487.6,
+          "hwm": 493.4
+        },
+        "despues": {
+          "rss": 938.7,
+          "pss": 935.9,
+          "uss": 933.0,
+          "hwm": 1743.0
+        },
+        "delta_rss": 445.3,
+        "delta_pss": 445.4,
+        "pico_sobre_inicio": 1249.6
+      },
+      "inferencia2": {
+        "segundos": 2.12,
+        "antes": {
+          "rss": 938.7,
+          "pss": 935.9,
+          "uss": 933.0,
+          "hwm": 938.7
+        },
+        "despues": {
+          "rss": 940.1,
+          "pss": 937.3,
+          "uss": 934.4,
+          "hwm": 1756.8
+        },
+        "delta_rss": 1.4,
+        "delta_pss": 1.4,
+        "pico_sobre_inicio": 818.1
+      },
+      "entrada": "256 mensajes",
+      "final": {
+        "rss": 940.1,
+        "pss": 937.3,
+        "uss": 934.4,
+        "hwm": 1756.8
+      }
+    },
+    "yolo": {
+      "modelo": "yolo",
+      "inicio": {
+        "rss": 12.7,
+        "pss": 9.8,
+        "uss": 7.0,
+        "hwm": 12.7
+      },
+      "importar_torch": {
+        "segundos": 1.03,
+        "antes": {
+          "rss": 12.8,
+          "pss": 9.9,
+          "uss": 7.0,
+          "hwm": 12.8
+        },
+        "despues": {
+          "rss": 228.0,
+          "pss": 225.1,
+          "uss": 222.2,
+          "hwm": 228.0
+        },
+        "delta_rss": 215.2,
+        "delta_pss": 215.2,
+        "pico_sobre_inicio": 215.2
+      },
+      "importar": {
+        "segundos": 0.13,
+        "antes": {
+          "rss": 228.0,
+          "pss": 225.1,
+          "uss": 222.2,
+          "hwm": 228.0
+        },
+        "despues": {
+          "rss": 257.6,
+          "pss": 254.7,
+          "uss": 251.8,
+          "hwm": 257.6
+        },
+        "delta_rss": 29.6,
+        "delta_pss": 29.6,
+        "pico_sobre_inicio": 29.6
+      },
+      "cargar": {
+        "segundos": 0.21,
+        "antes": {
+          "rss": 263.2,
+          "pss": 260.3,
+          "uss": 257.4,
+          "hwm": 263.2
+        },
+        "despues": {
+          "rss": 446.3,
+          "pss": 443.4,
+          "uss": 440.5,
+          "hwm": 446.3
+        },
+        "delta_rss": 183.1,
+        "delta_pss": 183.1,
+        "pico_sobre_inicio": 183.1
+      },
+      "inferencia": {
+        "segundos": 3.88,
+        "antes": {
+          "rss": 446.4,
+          "pss": 443.5,
+          "uss": 440.6,
+          "hwm": 446.4
+        },
+        "despues": {
+          "rss": 840.3,
+          "pss": 837.4,
+          "uss": 834.5,
+          "hwm": 886.9
+        },
+        "delta_rss": 393.9,
+        "delta_pss": 393.9,
+        "pico_sobre_inicio": 440.5
+      },
+      "inferencia2": {
+        "segundos": 2.65,
+        "antes": {
+          "rss": 840.3,
+          "pss": 837.4,
+          "uss": 834.5,
+          "hwm": 840.3
+        },
+        "despues": {
+          "rss": 867.1,
+          "pss": 864.2,
+          "uss": 861.3,
+          "hwm": 883.8
+        },
+        "delta_rss": 26.8,
+        "delta_pss": 26.8,
+        "pico_sobre_inicio": 43.5
+      },
+      "entrada": "5 fotos de Open Images",
+      "pesos": "yolov8l-oiv7.pt",
+      "final": {
+        "rss": 867.1,
+        "pss": 864.2,
+        "uss": 861.3,
+        "hwm": 883.8
+      }
+    }
+  },
+  "texto_por_bloque": [
+    {
+      "mensajes": 32,
+      "trabajo_mb": 820.1,
+      "residente_mb": 938.8,
+      "segundos": 1.17
+    },
+    {
+      "mensajes": 64,
+      "trabajo_mb": 817.3,
+      "residente_mb": 937.7,
+      "segundos": 1.33
+    },
+    {
+      "mensajes": 256,
+      "trabajo_mb": 817.6,
+      "residente_mb": 935.7,
+      "segundos": 2.17
+    },
+    {
+      "mensajes": 1024,
+      "trabajo_mb": 819.1,
+      "residente_mb": 943.4,
+      "segundos": 5.69
+    }
+  ]
+}

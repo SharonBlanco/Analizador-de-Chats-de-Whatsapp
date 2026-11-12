@@ -1,0 +1,54 @@
+{
+  "t0": 1794455700.9560556,
+  "casos": 8,
+  "bloques": 4,
+  "adjuntos": false,
+  "por_estado": {
+    "completed": 8
+  },
+  "subtareas": 32,
+  "subtareas_por_estado": {
+    "completed": 32
+  },
+  "segundos_total": 75.3,
+  "throughput_casos_min": 6.38,
+  "throughput_subtareas_s": 0.43,
+  "latencia_s": {
+    "p50": 44.4,
+    "p95": 62.9,
+    "max": 75.2,
+    "min": 12.8
+  },
+  "oom": [],
+  "reintentos": 0,
+  "reasignaciones": 0,
+  "errores": [],
+  "workers": {
+    "wa-m1-rafaga": {
+      "pools": [
+        "texto"
+      ],
+      "concurrencia": 1,
+      "completadas": 32,
+      "memoria": {
+        "limite_mb": 2200.0,
+        "uso_mb": 1289.2,
+        "pico_mb": 2122.5,
+        "oom_kills": 0,
+        "reservado_mb": 0.0,
+        "capacidad_mb": 821.6,
+        "esperas": 0,
+        "exclusiva": false,
+        "rss_mb": 1830.8,
+        "pss_mb": 1826.4,
+        "presupuesto_mb": 1980.0,
+        "persistente_mb": 1158.4,
+        "admision": true,
+        "rechazados": {},
+        "decisiones": [],
+        "reinicios": 0,
+        "supervisado": true
+      }
+    }
+  }
+}

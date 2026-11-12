@@ -1,0 +1,26 @@
+[
+  {
+    "mensajes": 32,
+    "trabajo_mb": 820.1,
+    "residente_mb": 938.8,
+    "segundos": 1.17
+  },
+  {
+    "mensajes": 64,
+    "trabajo_mb": 817.3,
+    "residente_mb": 937.7,
+    "segundos": 1.33
+  },
+  {
+    "mensajes": 256,
+    "trabajo_mb": 817.6,
+    "residente_mb": 935.7,
+    "segundos": 2.17
+  },
+  {
+    "mensajes": 1024,
+    "trabajo_mb": 819.1,
+    "residente_mb": 943.4,
+    "segundos": 5.69
+  }
+]

@@ -21,6 +21,8 @@ Configuración (variables de entorno o distribuido/config.env):
   WORKER_TOKEN                            el mismo que usa el coordinador
   WORKER_ID, WORKER_POOLS=texto,imagen,audio,adjuntos, WORKER_CONCURRENCIA=1
   WA_DETECCION=1   (0 = sin modelos: solo estadísticas y verificación; útil para medir la infraestructura)
+  M1 (memoria, ver memoria.py): WA_ADMISION=1 (0 = sin control de admisión, para provocar OOM a propósito),
+  WA_MEMORIA_MB (presupuesto fijo; si no, el límite del cgroup), WA_MARGEN_MEMORIA=0.10
   Modelos: ver detectores.py (WA_DISPOSITIVO, WA_WHISPER_MODELO, WA_YOLO_MODELO…)
 """
 
@@ -52,12 +54,13 @@ except ImportError:          # sin psutil el latido no lleva CPU/RAM
 
 AQUI = Path(__file__).resolve().parent
 # En el repositorio: distribuido/worker/worker.py; en Docker todo queda en /app
-for ruta in (AQUI.parent, AQUI.parents[1] / "mensajeria", AQUI / "mensajeria"):
+for ruta in (AQUI.parent, AQUI.parent.parent / "mensajeria", AQUI / "mensajeria"):
     if ruta.is_dir():
         sys.path.insert(0, str(ruta))
 
 from comun import (COLA_RESULTADOS, EXCHANGE_CONTROL, EXCHANGE_LATIDOS, INTERVALO_LATIDO, PERSISTENTE,  # noqa: E402
                    POOLS, ConfiguracionIncompleta, config, declarar, parametros_rabbit)
+import memoria  # noqa: E402
 from estadisticas import parcial  # noqa: E402
 from whatsapp_formato import Mensaje  # noqa: E402
 
@@ -72,6 +75,9 @@ DIR_TRABAJO = Path(config("WORKER_DIR", tempfile.gettempdir())) / f"wa-{WORKER_I
 # y se pueda provocar una caída a mitad. 0 en mediciones.
 RETARDO_DEMO = float(config("WA_RETARDO_DEMO", "0"))
 DETECCION = config("WA_DETECCION", "1") not in ("0", "no", "false")
+ADMISION = config("WA_ADMISION", "1") not in ("0", "no", "false")
+REINICIOS = int(config("WA_REINICIOS", "0"))           # los pone supervisor.py
+SUPERVISADO = config("WA_SUPERVISADO") == "1"
 
 try:   # los modelos son opcionales: sin ellos el worker sigue haciendo estadísticas y verificación
     import detectores
@@ -96,7 +102,10 @@ for p in MIS_POOLS:
         raise SystemExit(f"Pool desconocido: {p}. Opciones: {', '.join(POOLS)}")
 
 candado = threading.Lock()
-contadores = {"en_curso": 0, "completadas": 0, "fallidas": 0}
+contadores = {"en_curso": 0, "completadas": 0, "fallidas": 0, "rechazadas_oom": 0}
+PLAN: dict = {}                       # plan de memoria del nodo (memoria.planificar), se calcula al arrancar
+admision: memoria.Admision | None = None
+registro: memoria.Registro | None = None
 cancelados: set[str] = set()
 consumidor = {"conexion": None, "canal": None}
 
@@ -228,8 +237,30 @@ def manejar(conexion, canal, etiqueta, reentregada: bool, cuerpo: bytes) -> None
     if sub["trabajo"] in cancelados:
         publicar({"evento": "cancelada"}, ack=True)
         return
+    # ---- M1: política de reencolado tras OOM (las cuentas las anota supervisor.py)
+    ooms = registro.oom_de(sub["subtarea"]) if registro else 0
+    if ooms >= memoria.MAX_OOM:
+        print(f"  [✗] {sub['subtarea']} ya provocó {ooms} OOM en este nodo: se rechaza para que la tome otro")
+        with candado:
+            contadores["rechazadas_oom"] += 1
+        publicar({"evento": "fin", "estado": "failed", "reintentable": True, "oom": ooms,
+                  "error": f"OOM: superó la memoria de {WORKER_ID} ({memoria.limite_mb() or '?'} MB) {ooms} veces"}, ack=True)
+        return
+    exclusiva = ooms == 1               # 2.º intento en este nodo: corre sola, sin otras sub-tareas en paralelo
+    pool = sub["tipo"] if sub["tipo"] == "texto" else memoria_pool(sub)
+    # ---- M1: control de admisión (espera hasta que haya memoria para esta sub-tarea)
+    reservado = admision.entrar(pool, exclusiva, cancelada=lambda: sub["trabajo"] in cancelados) if admision else 0
+    if sub["trabajo"] in cancelados:
+        if admision:
+            admision.salir(reservado, exclusiva)
+        publicar({"evento": "cancelada"}, ack=True)
+        return
+    if registro:
+        registro.empezar(sub)
     with candado:
         contadores["en_curso"] += 1
+    if exclusiva:
+        print(f"  [M1] {sub['subtarea']} provocó un OOM antes: se procesa sola (modo exclusivo)")
     descripcion = f"{len(sub['mensajes'])} mensajes" if sub["tipo"] == "texto" else f"{sub.get('tipo_archivo')}: {sub['archivo']}"
     print(f"  [←] {sub['subtarea']} ({sub['tipo']}: {descripcion}){' · re-entregada' if reentregada else ''}")
     publicar({"evento": "inicio", "reentregada": reentregada})
@@ -247,6 +278,10 @@ def manejar(conexion, canal, etiqueta, reentregada: bool, cuerpo: bytes) -> None
         fin = {"evento": "fin", "estado": "failed", "reintentable": True, "error": f"{type(e).__name__}: {str(e)[:300]}"}
         clave = "fallidas"
     fin["duracion"] = round(time.perf_counter() - t0, 4)
+    if admision:
+        admision.salir(reservado, exclusiva)
+    if registro:
+        registro.terminar(sub)
     with candado:
         contadores["en_curso"] -= 1
         if clave:
@@ -255,6 +290,11 @@ def manejar(conexion, canal, etiqueta, reentregada: bool, cuerpo: bytes) -> None
         print(f"  [{'✓' if fin['estado'] == 'completed' else '✗'}] {sub['subtarea']} en {fin['duracion']} s"
               f"{'' if fin['estado'] == 'completed' else ' — ' + fin['error']}")
     publicar(fin, ack=True)
+
+
+def memoria_pool(sub: dict) -> str:
+    """Pool de un adjunto según su tipo (la huella de memoria depende del modelo que use)."""
+    return {"imagen": "imagen", "voz": "audio", "audio": "audio"}.get(sub.get("tipo_archivo"), "adjuntos")
 
 
 def al_mensaje(canal, metodo, _props, cuerpo) -> None:
@@ -296,7 +336,8 @@ def consumir() -> None:
                 pass
             return
         except ConfiguracionIncompleta as e:
-            raise SystemExit(f"[✗] {e}") from e
+            print(f"[✗] {e}")
+            raise SystemExit(78) from e       # EX_CONFIG: el supervisor no reinicia un error de configuración
         except Exception as e:  # noqa: BLE001
             print(f"[!] Sin conexión con RabbitMQ ({type(e).__name__}). Reintentando en 5 s…")
             time.sleep(5)
@@ -341,15 +382,59 @@ def latidos() -> None:
                                   if detectores is None else "ok"),
                     "dispositivo": detectores.dispositivo() if detectores and DETECCION else None,
                     "modelos": detectores.modelos_cargados() if detectores else {},
+                    "memoria": {**memoria.estado_cgroup(), **(admision.estado() if admision else {}),
+                                "rss_mb": round(proceso.memory_info().rss / 2 ** 20, 1) if proceso else None,
+                                "pss_mb": memoria.proceso_mb().get("pss"),
+                                "presupuesto_mb": PLAN.get("presupuesto_mb"), "persistente_mb": PLAN.get("persistente_mb"),
+                                "admision": PLAN.get("admision"), "rechazados": PLAN.get("rechazados"),
+                                "decisiones": PLAN.get("decisiones"), "reinicios": REINICIOS, "supervisado": SUPERVISADO},
                 }).encode())
-                conexion.sleep(INTERVALO_LATIDO)            # atiende los heartbeats mientras espera
+                conexion.sleep(float(config("WA_INTERVALO_LATIDO", str(INTERVALO_LATIDO))))            # atiende los heartbeats mientras espera
         except ConfiguracionIncompleta:
             return
         except Exception:  # noqa: BLE001
             time.sleep(5)
 
 
+def preparar_memoria() -> None:
+    """M1: con el límite del cgroup y las huellas medidas, decide qué acepta este nodo."""
+    global PLAN, admision, registro, MIS_POOLS, CONCURRENCIA
+    try:   # que el kernel elija a este proceso (y no al supervisor) si hay que matar a alguien por memoria
+        Path("/proc/self/oom_score_adj").write_text("500")
+    except OSError:
+        pass
+    presupuesto, origen = memoria.presupuesto_mb()
+    disp = detectores.dispositivo() if detectores and DETECCION else "cpu"
+    texto_modelo = config("WA_TEXTO_MODELO", "1") not in ("0", "no", "false")
+    PLAN = memoria.planificar(MIS_POOLS, presupuesto, memoria.proceso_mb().get("rss") or 60,
+                              texto_modelo=texto_modelo and detectores is not None,
+                              whisper_preferido=detectores.tamano_whisper(disp) if detectores else "small",
+                              deteccion=DETECCION and detectores is not None,
+                              concurrencia_max=CONCURRENCIA, admision=ADMISION)
+    PLAN["origen"] = origen
+    if detectores and DETECCION:
+        detectores.configurar(texto_modelo=PLAN["texto_modelo"], whisper=PLAN["whisper"])
+    MIS_POOLS, CONCURRENCIA = PLAN["pools"], PLAN["concurrencia"]
+    admision = memoria.Admision(PLAN)
+    registro = memoria.Registro(DIR_TRABAJO)
+    lim = memoria.limite_mb()
+    print(f"Memoria (M1): límite del cgroup {f'{lim:.0f} MB' if lim else 'sin límite'} · presupuesto "
+          f"{f'{presupuesto:.0f} MB' if presupuesto else '?'} ({origen}) · "
+          f"{'admisión activa' if ADMISION else 'ADMISIÓN DESACTIVADA (WA_ADMISION=0)'}")
+    print(f"  plan: {', '.join(MIS_POOLS) or 'ningún pool'} · ~{PLAN['persistente_mb']:.0f} MB fijos (modelos) · "
+          f"concurrencia {CONCURRENCIA} (por memoria: {PLAN['concurrencia_por_memoria']})"
+          + (" · [huellas provisionales: correr distribuido/m1/medir_modelos.py]" if PLAN["huellas_provisionales"] else ""))
+    for d in PLAN["decisiones"]:
+        print(f"  degradado: {d}")
+    for p, motivo in PLAN["rechazados"].items():
+        print(f"  [!] no atiende «{p}»: {motivo}")
+    if REINICIOS:
+        print(f"  [supervisor] reinicio n.º {REINICIOS}")
+
+
 if __name__ == "__main__":
+    DIR_TRABAJO.mkdir(parents=True, exist_ok=True)
+    preparar_memoria()
     m = maquina()
     print("=" * 60)
     print(f"WORKER {WORKER_ID} (v{VERSION}) · pools: {', '.join(MIS_POOLS)} · concurrencia {CONCURRENCIA}")
@@ -359,6 +444,5 @@ if __name__ == "__main__":
     if RETARDO_DEMO:
         print(f"[!] Modo demostración: +{RETARDO_DEMO:g} s por sub-tarea (no usar para medir)")
     print("=" * 60)
-    DIR_TRABAJO.mkdir(parents=True, exist_ok=True)
     threading.Thread(target=latidos, daemon=True).start()
     consumir()

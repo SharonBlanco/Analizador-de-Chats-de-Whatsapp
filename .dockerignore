@@ -1,0 +1,9 @@
+# La imagen del worker solo lleva código. Se excluye TODO y se habilita lo necesario:
+# así nunca entran a la imagen los chats (dataset_whatsapp/), el dataset, el venv ni credenciales.
+*
+!mensajeria/whatsapp_formato.py
+!mensajeria/estadisticas.py
+!distribuido/comun.py
+!distribuido/worker/requirements.txt
+!distribuido/worker/*.py
+!distribuido/worker/huella_modelos.json

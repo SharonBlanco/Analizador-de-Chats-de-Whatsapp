@@ -54,6 +54,10 @@ DESTINO = ["Archivos", "Files", "Files de Google", "Files by Google", "Guardar e
 BOTON_GUARDAR = ["Guardar", "Save", "GUARDAR", "SAVE"]
 
 
+class ErrorTelefono(Exception):
+    """No se pudo completar la exportación (la app web lo muestra; la terminal termina)."""
+
+
 def tocar(d, textos, timeout=5) -> bool:
     """Busca un elemento por texto o por descripción y lo toca. Devuelve True si lo encontró."""
     fin = time.time() + timeout
@@ -79,7 +83,7 @@ def tamano(d, archivo: str) -> int:
     return int(salida) if salida.isdigit() else -1
 
 
-def esperar_escritura(d, archivo: str, estable: int = 3, timeout: int = 600) -> None:
+def esperar_escritura(d, archivo: str, estable: int = 3, timeout: int = 600, avisar=print) -> None:
     """Espera a que el tamaño del archivo deje de cambiar: con archivos incluidos el
     .zip puede pesar cientos de MB y tardar en escribirse."""
     anterior, iguales, fin = -1, 0, time.time() + timeout
@@ -88,7 +92,7 @@ def esperar_escritura(d, archivo: str, estable: int = 3, timeout: int = 600) -> 
         iguales = iguales + 1 if actual == anterior and actual > 0 else 0
         anterior = actual
         time.sleep(1)
-    print(f"Archivo listo en el celular: {anterior / 2**20:.1f} MB")
+    avisar(f"Archivo listo en el celular: {anterior / 2**20:.1f} MB")
 
 
 def abrir_chat(d, nombre: str) -> None:
@@ -110,7 +114,29 @@ def abrir_chat(d, nombre: str) -> None:
     time.sleep(1.5)
 
 
-def exportar(d, nombre: str, con_archivos: bool = True) -> Path:
+def chats_recientes(d, maximo: int = 20) -> list[str]:
+    """Nombres de los chats que se ven en la lista principal de WhatsApp (desplazándose un poco)."""
+    d.app_start(PAQUETE, stop=True)
+    d(packageName=PAQUETE).wait(timeout=10)
+    time.sleep(2)
+    nombres: list[str] = []
+    for _ in range(3):
+        for el in d(resourceId=f"{PAQUETE}:id/conversations_row_contact_name"):
+            try:
+                t = el.get_text()
+            except Exception:  # noqa: BLE001 — el elemento desapareció al desplazarse
+                continue
+            if t and t not in nombres:
+                nombres.append(t)
+        if len(nombres) >= maximo:
+            break
+        d.swipe_ext("up", scale=0.6)
+        time.sleep(1)
+    return nombres[:maximo]
+
+
+def exportar(d, nombre: str, con_archivos: bool = True, avisar=print, destino_pc: Path = None) -> Path:
+    """Exporta el chat en el teléfono y copia el archivo a la computadora. avisar(texto) recibe el avance."""
     antes = archivos_en_descargas(d)
     try:
         abrir_chat(d, nombre)
@@ -118,18 +144,18 @@ def exportar(d, nombre: str, con_archivos: bool = True) -> Path:
                  ("Exportar chat", BOTON_EXPORTAR),
                  ("Incluir archivos", BOTON_CON_ARCHIVOS) if con_archivos
                  else ("Sin archivos", BOTON_SIN_ARCHIVOS)]
+        avisar(f'Chat "{nombre}" abierto; exportando…')
         for etiqueta, textos in pasos:
             if not tocar(d, textos, timeout=8):
                 raise RuntimeError(f'No encontré "{etiqueta}"')
-        print("Preparando el archivo...")
+        avisar("WhatsApp está preparando el archivo…")
         time.sleep(10 if con_archivos else 3)  # WhatsApp tarda en generar el archivo
         if not tocar(d, DESTINO, timeout=15):
             raise RuntimeError("No encontré la app de destino en el menú Compartir")
         tocar(d, BOTON_GUARDAR, timeout=10)
     except RuntimeError as e:
-        print(f"\n⚠ {e}.")
-        print("Termina ese paso a mano en el celular y guarda el archivo en Descargas.")
-        print(f"Te espero hasta {ESPERA_MANUAL} segundos...")
+        avisar(f"⚠ {e}. Termine ese paso a mano en el celular y guarde el archivo en Descargas "
+               f"(se espera hasta {ESPERA_MANUAL} s).")
 
     # Espera a que aparezca el archivo nuevo en Descargas
     fin = time.time() + ESPERA_MANUAL
@@ -139,14 +165,16 @@ def exportar(d, nombre: str, con_archivos: bool = True) -> Path:
             break
         time.sleep(2)
     else:
-        sys.exit("No apareció ningún archivo nuevo en Descargas. Intenta de nuevo.")
+        raise ErrorTelefono("No apareció ningún archivo nuevo en Descargas del teléfono. Intente de nuevo.")
 
     nombre_archivo = sorted(nuevos)[-1]
-    esperar_escritura(d, nombre_archivo)
-    CARPETA_PC.mkdir(exist_ok=True)
-    destino = CARPETA_PC / nombre_archivo
+    esperar_escritura(d, nombre_archivo, avisar=avisar)
+    carpeta = destino_pc or CARPETA_PC
+    carpeta.mkdir(parents=True, exist_ok=True)
+    destino = carpeta / nombre_archivo
+    avisar("Copiando el archivo a la computadora…")
     d.pull(f"{CARPETA_CEL}/{nombre_archivo}", str(destino))
-    print(f"✔ Chat copiado a {destino}")
+    avisar(f"✔ Chat copiado ({destino.stat().st_size / 2**20:.1f} MB)")
 
     return destino
 
@@ -170,7 +198,10 @@ if __name__ == "__main__":
     chat = args[0]
     dispositivo = u2.connect()  # usa el celular conectado por USB
     print(f"Conectado a {dispositivo.info.get('productName', 'celular')}. Exportando '{chat}'...")
-    archivo = exportar(dispositivo, chat, con_archivos="--sin-archivos" not in sys.argv)
+    try:
+        archivo = exportar(dispositivo, chat, con_archivos="--sin-archivos" not in sys.argv)
+    except ErrorTelefono as e:
+        sys.exit(str(e))
 
     aqui = Path(__file__).resolve().parent
     if "--importar" in sys.argv:

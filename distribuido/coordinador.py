@@ -113,6 +113,9 @@ class Plataforma:
         self.configurado = True
         self.error: str | None = None
         self.destino = f'{config("RABBIT_HOST", "localhost")}:{config("RABBIT_PORT", "5672")}'
+        # M1: serie de memoria de cada worker (un renglón por latido) para graficar ráfagas
+        self.csv_memoria = dataset / ".metricas" / "memoria_workers.csv"
+        self._candado_csv = threading.Lock()
 
     # ============================================================ arranque
     def iniciar(self) -> None:
@@ -185,7 +188,27 @@ class Plataforma:
             latido = json.loads(cuerpo)
             with self.lock:
                 self.workers[latido["worker"]] = {**latido, "visto": time.time()}
+            self._anotar_memoria(latido)
         except (ValueError, KeyError):
+            pass
+
+    def _anotar_memoria(self, latido: dict) -> None:
+        m = latido.get("memoria")
+        if not m:
+            return
+        fila = [round(time.time(), 2), latido["worker"], m.get("uso_mb"), m.get("limite_mb"), m.get("rss_mb"), m.get("pss_mb"),
+                m.get("reservado_mb"), latido.get("en_curso"), m.get("oom_kills"), m.get("reinicios")]
+        try:
+            with self._candado_csv:
+                nuevo = not self.csv_memoria.exists()
+                self.csv_memoria.parent.mkdir(parents=True, exist_ok=True)
+                with open(self.csv_memoria, "a", newline="", encoding="utf-8") as f:
+                    w = csv.writer(f)
+                    if nuevo:
+                        w.writerow(["t", "worker", "cgroup_mb", "limite_mb", "rss_mb", "pss_mb", "reservado_mb",
+                                    "en_curso", "oom_kills", "reinicios"])
+                    w.writerow(fila)
+        except OSError:
             pass
 
     def _al_resultado(self, canal, metodo, _props, cuerpo) -> None:
@@ -295,9 +318,11 @@ class Plataforma:
         st = tr["subtareas"].get(msg.get("subtarea")) if tr else None
         if st and st["estado"] == "cancelled" and msg.get("evento") == "inicio":
             return tr["id"]
+        evento, worker = msg.get("evento"), msg.get("worker")
+        if evento == "oom":
+            return self._oom(tr, st, msg)
         if not st or st["estado"] in FINALES_ST:
             return None                              # trabajo borrado, o duplicado de una re-entrega
-        evento, worker = msg.get("evento"), msg.get("worker")
 
         if evento == "inicio":
             # Si la tenía otro worker, este cayó y RabbitMQ la re-entregó
@@ -329,6 +354,25 @@ class Plataforma:
             else:
                 st.update(estado="failed", worker=worker, fin=time.time(), duracion=msg.get("duracion"))
         self._barrera(tr)
+        self._guardar(tr)
+        return None
+
+    def _oom(self, tr: dict | None, st: dict | None, msg: dict) -> None:
+        """M1: el supervisor de un worker avisa que el kernel lo mató por memoria. La sub-tarea no se
+        pierde (no tenía ACK: RabbitMQ la re-entrega); aquí solo se registra y se avisa."""
+        worker = msg.get("worker")
+        with self.lock:
+            if worker in self.workers:
+                self.workers[worker]["oom"] = self.workers[worker].get("oom", 0) + 1
+        if not tr or not st:
+            return None
+        st.setdefault("oom", []).append({"worker": worker, "veces": msg.get("veces"), "limite_mb": msg.get("limite_mb"),
+                                         "pico_mb": msg.get("pico_mb"), "hora": _iso(msg.get("hora") or time.time())})
+        if st["estado"] == "procesando" and st.get("worker") == worker:
+            st.update(estado="pendiente", worker=None)          # esperando la re-entrega de RabbitMQ
+        politica = ("se reintenta sola en ese nodo" if (msg.get("veces") or 1) < 2
+                    else "ese nodo la rechazará: pasa a otro nodo o falla tras los reintentos")
+        self._alerta("media", tr, f"OOM: {worker} se quedó sin memoria ({msg.get('limite_mb')} MB) con {st['id']}; {politica}")
         self._guardar(tr)
         return None
 

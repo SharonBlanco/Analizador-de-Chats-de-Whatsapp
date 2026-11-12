@@ -339,6 +339,14 @@ pre.cmd { margin: 8px 0 0; padding: 10px 12px; background: var(--agua-hielo); bo
 .riesgo-celda { display: flex; gap: 4px; flex-wrap: nowrap; white-space: nowrap; }
 .btn-ver { margin-left: auto; }
 .hallazgo-cab .chat-link { font-weight: 700; color: var(--petroleo); }
+.tel-disp { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 10px 12px; border: 1px solid var(--borde);
+  border-radius: var(--radio); background: var(--agua-hielo); font-size: 13px; }
+.tel-disp + .tel-disp { margin-top: 8px; }
+.tel-chats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; max-height: 120px; overflow: auto; }
+.tel-log { margin-top: 10px; font: 12px/1.6 var(--mono); color: var(--texto-2); background: var(--agua-hielo);
+  border: 1px solid var(--borde); border-radius: var(--radio); padding: 8px 10px; max-height: 140px; overflow: auto; }
+details.ayuda-tel summary { cursor: pointer; font-size: 12.5px; color: var(--petroleo); margin-top: 10px; }
+details.ayuda-tel ol { font-size: 12.5px; color: var(--texto); padding-left: 18px; margin: 6px 0 0; }
 #tip { position: fixed; pointer-events: none; z-index: 10; background: var(--texto); color: var(--blanco);
   font-size: 12px; padding: 7px 10px; border-radius: 5px; line-height: 1.4; max-width: 260px; display: none; }
 #tip b { display: block; font-weight: 600; }
@@ -415,6 +423,16 @@ pre.cmd { margin: 8px 0 0; padding: 10px 12px; background: var(--agua-hielo); bo
 "use strict";
 /* ================================================================ utilidades */
 const $ = s => document.querySelector(s);
+/* Redibuja un bloque que se refresca solo (sondeo) sin perder la posición de las barras de
+   desplazamiento: si el HTML no cambió no toca nada; si cambió, guarda y restaura el scroll
+   horizontal/vertical del bloque y de cada tabla desplazable dentro de él. */
+function pintar(el, html) {
+  if (!el || el._html === html) return;
+  const cajas = el => [el, ...el.querySelectorAll(".tabla-scroll, [data-scroll]")];
+  const pos = cajas(el).map(c => [c.scrollLeft, c.scrollTop]);
+  el.innerHTML = html; el._html = html;
+  cajas(el).forEach((c, i) => { if (pos[i]) [c.scrollLeft, c.scrollTop] = pos[i]; });
+}
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const icono = n => `<svg class="i"><use href="#i-${n}"/></svg>`;
 const fmtN = n => (n ?? 0).toLocaleString("es-CR");
@@ -456,10 +474,11 @@ const st = {
   trabajosCaso: [], trabajo: null, bloquesPar: null, adjPar: true,
   hallazgos: null, fHall: {severidad: "", tipo: "", categoria: ""}, mostrandoHall: 200,
   ultimaAlerta: null,
+  tel: null, telFirma: "", telSel: "", telChat: "", telChats: [], telArchivos: true, telTrabajo: null, telCargandoChats: false,
   riesgos: null, fRiesgo: {severidad: "", tipo: "", categoria: "", caso: "", q: ""}, mostrandoRiesgo: 100,
 };
-const CATEGORIAS = {amenaza: "Amenaza", arma: "Arma", agresion: "Agresión", odio: "Odio / machismo", insulto: "Insulto"};
-const SEVERIDAD_CAT = {amenaza: "alta", arma: "alta", agresion: "media", odio: "media", insulto: "media"};
+const CATEGORIAS = {amenaza: "Amenaza", ilicito: "Actividad ilícita", arma: "Arma", agresion: "Agresión", odio: "Odio / machismo", insulto: "Insulto"};
+const SEVERIDAD_CAT = {amenaza: "alta", ilicito: "alta", arma: "alta", agresion: "media", odio: "media", insulto: "media"};
 const SEVERIDADES = {alta: ["Alta", "error"], media: ["Media", "aviso"]};
 const insigniaSev = sv => `<span class="insignia ${(SEVERIDADES[sv] || ["", ""])[1]}">${(SEVERIDADES[sv] || [sv])[0]}</span>`;
 const fmtPct = x => x == null ? "—" : `${(x * 100).toLocaleString("es-CR", {maximumFractionDigits: 1})} %`;
@@ -493,7 +512,7 @@ function avisarAlertas(alertas) {
   for (const a of nuevas.slice(-4)) {
     const t = document.createElement("div");
     t.className = `tostada ${a.nivel === "alta" ? "alta" : ""}`;
-    t.innerHTML = `<b>${a.nivel === "alta" ? "Incidencia de severidad alta" : "Procesamiento terminado"}</b>${esc(a.chat)}: ${esc(a.texto)}`;
+    t.innerHTML = `<b>${a.nivel === "alta" ? "Incidencia de severidad alta" : a.nivel === "media" ? "Aviso del sistema" : "Procesamiento terminado"}</b>${esc(a.chat)}: ${esc(a.texto)}`;
     t.onclick = () => { ir(`#/caso/${encodeURIComponent(a.caso)}/hallazgos`); t.remove(); };
     caja.append(t);
     setTimeout(() => t.remove(), a.nivel === "alta" ? 12000 : 6000);
@@ -728,6 +747,14 @@ function vImportar() {
           <button class="btn btn-chico" id="btnPegar" style="margin-top:10px">Procesar texto</button>
         </div>
       </details></section>
+
+      <section class="panel" id="panelTel">
+        <div class="panel-cab"><div><h2>Desde el teléfono (USB)</h2>
+          <p class="panel-desc">Conecte un Android con depuración USB: la app abre WhatsApp, exporta el chat y lo importa sola.
+          Usa el nombre, la prioridad, la carpeta y la declaración de arriba.</p></div>
+          <button class="btn btn-texto btn-chico" id="btnTelRefrescar" type="button">Actualizar</button></div>
+        <div class="panel-cuerpo" id="telCuerpo"><div class="ayuda" style="margin:0">Buscando teléfonos…</div></div>
+      </section>
     </div>
 
     <div class="pila">
@@ -773,6 +800,16 @@ function enlazarImportar() {
   $("#declaro").onchange = actualizarBoton; $("#fuente").onchange = actualizarBoton;
   $("#btnImportar").onclick = importarSeleccion;
   $("#btnPegar").onclick = importarPegado;
+  $("#btnTelRefrescar").onclick = () => { st.telFirma = ""; cargarTelefono(); };
+  $("#declaro").addEventListener("change", renderTelefono);
+  renderTelefono();
+  if (!sondeo) {
+    cargarTelefono();
+    sondeo = setInterval(() => {
+      if (ruta().seccion !== "importar") return parar();
+      if (st.telTrabajo && st.telTrabajo.estado === "en curso") seguirTelefono(); else cargarTelefono();
+    }, 2000);
+  }
   actualizarBoton();
 }
 async function leerEntrada(entry) {
@@ -861,6 +898,84 @@ function importarPegado() {
   ejecutarImportacion(async () => { st.proceso.detalles.subida = "Texto enviado con la solicitud"; },
     () => api("/api/pegar", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({texto, ...o})}),
     `Texto pegado · ${fmtN(texto.split("\n").length)} líneas`);
+}
+
+/* ================================================================ Importar desde el teléfono */
+async function cargarTelefono() {
+  try { st.tel = await api("/api/telefono"); } catch (e) { st.tel = {disponible: false, error: e.message, dispositivos: []}; }
+  const listos = st.tel.dispositivos.filter(d => d.estado === "device");
+  if (!listos.some(d => d.serial === st.telSel)) st.telSel = listos[0]?.serial || "";
+  const firma = JSON.stringify(st.tel);
+  if (firma !== st.telFirma) { st.telFirma = firma; renderTelefono(); }   // no repintar si nada cambió (no pierde el foco)
+}
+function renderTelefono() {
+  const el = $("#telCuerpo"); if (!el) return;
+  const t = st.tel, tr = st.telTrabajo;
+  if (!t) return;
+  const ayudaDepuracion = `<details class="ayuda-tel"><summary>¿Cómo activar la depuración USB?</summary><ol>
+      <li>En el teléfono: <b>Ajustes → Acerca del teléfono</b> y tocar 7 veces <b>Número de compilación</b>.</li>
+      <li>Volver a Ajustes → <b>Opciones de desarrollador</b> → activar <b>Depuración USB</b>.</li>
+      <li>Conectar el cable USB-C (de datos) y aceptar <b>«¿Permitir depuración USB?»</b> en el teléfono.</li>
+      <li>La primera vez puede pedir aceptar la instalación de un servicio de automatización (uiautomator2).</li></ol></details>`;
+  if (!t.disponible) { el.innerHTML = `<div class="error">${icono("alerta")}<span>${esc(t.error)}</span></div>`; return; }
+  let h = t.dispositivos.length ? t.dispositivos.map(d => `<div class="tel-disp">
+      <span class="insignia ${d.estado === "device" ? "ok" : "aviso"}">${d.estado === "device" ? "Conectado" : d.estado === "unauthorized" ? "Falta autorizar" : esc(d.estado)}</span>
+      <b>${esc(d.modelo || d.serial)}</b>${d.android ? `<span style="color:var(--texto-2)">Android ${esc(d.android)}</span>` : ""}
+      ${d.estado !== "device" || d.whatsapp === false ? `<div style="width:100%;font-size:12.5px;color:var(--aviso-texto)">${esc(d.ayuda)}</div>` : ""}</div>`).join("")
+    : `<div class="aviso">${icono("alerta")}<span>${esc(t.ayuda)}</span></div>`;
+  const listos = t.dispositivos.filter(d => d.estado === "device" && d.whatsapp !== false);
+  const enCurso = tr && tr.estado === "en curso";
+  if (listos.length) {
+    const declaro = $("#declaro")?.checked;
+    h += `<div style="margin-top:14px">
+      ${listos.length > 1 ? `<label class="campo" for="telSel">Teléfono</label><select id="telSel">${listos.map(d => `<option value="${esc(d.serial)}" ${d.serial === st.telSel ? "selected" : ""}>${esc(d.modelo || d.serial)}</option>`).join("")}</select>` : ""}
+      <label class="campo" for="telChat" style="margin-top:10px">Chat de WhatsApp</label>
+      <div style="display:flex;gap:8px"><input type="text" id="telChat" placeholder="Nombre tal como aparece en WhatsApp" value="${esc(st.telChat)}">
+        <button class="btn btn-chico" id="btnTelChats" type="button" ${st.telCargandoChats || enCurso ? "disabled" : ""}>${st.telCargandoChats ? "Leyendo…" : "Ver chats del teléfono"}</button></div>
+      ${st.telChats.length ? `<div class="tel-chats">${st.telChats.map(c => `<button type="button" class="seg ${c === st.telChat ? "activo" : ""}" data-telchat="${esc(c)}">${esc(c)}</button>`).join("")}</div>` : ""}
+      <label class="check-simple"><input type="checkbox" id="telArchivos" ${st.telArchivos ? "checked" : ""}> Incluir fotos, audios y videos</label>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap">
+        <button class="btn btn-primario" id="btnTelImportar" type="button" ${!st.telChat.trim() || !declaro || enCurso ? "disabled" : ""}>${icono("subir")}Importar desde el teléfono</button>
+        <span class="ayuda" style="margin:0">${enCurso ? "Importación en curso…" : !declaro ? "Marque la declaración de consentimiento (arriba)." : !st.telChat.trim() ? "Escriba o elija el chat." : ""}</span></div>
+      <div class="ayuda">Solo chats creados por el equipo con contenido ficticio (enunciado B.3). No toque el teléfono mientras se exporta.</div>
+    </div>`;
+  }
+  if (tr) {
+    const clase = i => tr.estado === "error" && i === tr.paso ? "error" : i < tr.paso || tr.estado === "listo" ? "hecho" : i === tr.paso ? "activo" : "";
+    h += `<div style="margin-top:16px"><ol class="pasos">${tr.pasos.map((p, i) => `<li class="paso ${clase(i)}"><span class="paso-marca">${clase(i) === "hecho" ? "✓" : clase(i) === "error" ? "!" : i + 1}</span>
+        <div><div class="paso-titulo">${esc(p)}</div></div></li>`).join("")}</ol>
+      <div class="tel-log">${tr.mensajes.slice(-8).map(m => `<div>${esc(m.hora)} ${esc(m.texto)}</div>`).join("")}</div>
+      ${tr.estado === "listo" ? `<a class="btn btn-chico" style="margin-top:10px" href="#/caso/${encodeURIComponent(tr.caso)}/resumen">Abrir conversación ${icono("flecha")}</a>` : ""}
+      ${tr.estado === "error" ? `<div class="error" style="margin-top:10px">${icono("alerta")}<span>${esc(tr.error)}</span></div>` : ""}</div>`;
+  }
+  if (!t.dispositivos.some(d => d.estado === "device")) h += ayudaDepuracion;
+  const enfocado = document.activeElement?.id === "telChat";
+  el.innerHTML = h;
+  if (enfocado) { const i = $("#telChat"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }
+  $("#telSel")?.addEventListener("change", e => { st.telSel = e.target.value; st.telChats = []; renderTelefono(); });
+  $("#telChat")?.addEventListener("input", e => { st.telChat = e.target.value; const b = $("#btnTelImportar");
+    if (b) b.disabled = !st.telChat.trim() || !$("#declaro").checked || enCurso; });
+  $("#telArchivos")?.addEventListener("change", e => { st.telArchivos = e.target.checked; });
+  el.querySelectorAll("[data-telchat]").forEach(b => b.onclick = () => { st.telChat = b.dataset.telchat; renderTelefono(); });
+  $("#btnTelChats")?.addEventListener("click", async () => {
+    st.telCargandoChats = true; renderTelefono();
+    try { st.telChats = (await api(`/api/telefono/chats?serial=${encodeURIComponent(st.telSel)}`)).chats;
+      if (!st.telChats.length) alert("No se encontraron chats en la pantalla de WhatsApp. Escriba el nombre a mano."); }
+    catch (e) { alert(e.message); }
+    st.telCargandoChats = false; renderTelefono();
+  });
+  $("#btnTelImportar")?.addEventListener("click", async () => {
+    try {
+      const r = await api("/api/telefono/importar", JSON_POST({serial: st.telSel, chat: st.telChat, con_archivos: st.telArchivos, ...opciones()}));
+      st.telTrabajo = {estado: "en curso", paso: 0, pasos: ["Conectar con el teléfono", "Exportar el chat en WhatsApp", "Copiar a la computadora", "Importar a la plataforma"], mensajes: [], id: r.id};
+      renderTelefono();
+    } catch (e) { alert(e.message); }
+  });
+}
+async function seguirTelefono() {
+  try { st.telTrabajo = await api(`/api/telefono/trabajos/${st.telTrabajo.id}`); } catch { return; }
+  if (st.telTrabajo.estado === "listo") { await cargarCasos(); renderNav(); }
+  renderTelefono();
 }
 
 /* ================================================================ Conversaciones */
@@ -1491,7 +1606,7 @@ function tablaWorkers(ws) {
     <p>En cada computadora que aporte capacidad, desde la raíz del proyecto:</p>
     <pre class="cmd" style="max-width:560px;margin:10px auto 0;text-align:left">python3 distribuido/worker/worker.py</pre></div>`;
   return `<table><thead><tr><th>Worker</th><th>Máquina</th><th>Pools</th><th>Detección</th><th>Estado</th><th class="der">CPU</th><th class="der">RAM</th>
-    <th class="der">Memoria del proceso</th><th class="der">En curso</th><th class="der">Completadas</th><th class="der">Fallidas</th><th>Usuario</th></tr></thead>
+    <th style="min-width:200px">Memoria (M1)</th><th class="der">En curso</th><th class="der">Completadas</th><th class="der">Fallidas</th><th>Usuario</th></tr></thead>
     <tbody>${ws.map(w => `<tr>
       <td><div style="font-weight:600;white-space:nowrap">${esc(w.worker)}</div><div class="mono" style="white-space:normal;word-break:break-all;max-width:180px">${esc(w.maquina?.hostname || "")}</div></td>
       <td style="font-size:12.5px;min-width:240px">${esc(w.maquina?.cpu || "")}<div style="color:var(--texto-2)">${w.maquina?.nucleos ?? "?"} núcleos · ${w.maquina?.ram_gb ?? "?"} GB · ${esc(w.maquina?.so || "")}</div></td>
@@ -1501,9 +1616,27 @@ function tablaWorkers(ws) {
       <td>${w.activo ? `<span class="insignia ok">Activo</span>` : `<span class="insignia">Sin señal · ${fmtSeg(w.hace)}</span>`}</td>
       <td class="der num">${w.cpu != null ? w.cpu.toLocaleString("es-CR") + " %" : "—"}</td>
       <td class="der num">${w.ram != null ? w.ram.toLocaleString("es-CR") + " %" : "—"}</td>
-      <td class="der num">${w.rss_mb != null ? w.rss_mb.toLocaleString("es-CR") + " MB" : "—"}</td>
+      <td>${celdaMemoria(w)}</td>
       <td class="der num">${fmtN(w.en_curso)}</td><td class="der num">${fmtN(w.completadas)}</td><td class="der num">${fmtN(w.fallidas)}</td>
       <td>${esc(w.maquina?.usuario || "")}</td></tr>`).join("")}</tbody></table>`;
+}
+/* M1: uso del cgroup frente al límite del contenedor, reserva del control de admisión, OOM y reinicios */
+function celdaMemoria(w) {
+  const m = w.memoria || {}, mb = x => x != null ? `${Math.round(x).toLocaleString("es-CR")} MB` : "—";
+  const uso = m.uso_mb ?? m.rss_mb ?? w.rss_mb, lim = m.limite_mb;
+  const pct = lim && uso != null ? Math.min(100, 100 * uso / lim) : null;
+  const avisos = [
+    m.oom_kills ? `<b style="color:var(--error-texto)">${m.oom_kills} OOM</b>` : "",
+    m.reinicios ? `${m.reinicios} reinicio${m.reinicios > 1 ? "s" : ""}` : "",
+    m.admision === false ? `<b>admisión desactivada</b>` : "",
+    ...Object.entries(m.rechazados || {}).map(([p, mot]) => `no atiende ${esc(p)}: ${esc(mot)}`),
+    ...(m.decisiones || []).map(esc),
+  ].filter(Boolean);
+  return `<div class="num" style="font-size:12.5px;white-space:nowrap">${mb(uso)}${lim ? ` de ${mb(lim)}` : " · sin límite"}</div>
+    ${pct != null ? `<div class="progreso" style="margin:4px 0" title="${pct.toFixed(0)} % del límite"><div style="width:${pct}%;${pct > 85 ? "background:var(--error-texto)" : ""}"></div></div>` : ""}
+    <div style="font-size:12px;color:var(--texto-2)">${m.reservado_mb != null ? `reservado ${mb(m.reservado_mb)}${m.capacidad_mb != null ? ` / ${mb(m.capacidad_mb)}` : ""}` : ""}
+    ${m.esperas ? ` · ${m.esperas} espera${m.esperas > 1 ? "s" : ""} por memoria` : ""}</div>
+    ${avisos.length ? `<div style="font-size:12px;color:var(--texto-2);white-space:normal">${avisos.join(" · ")}</div>` : ""}`;
 }
 function tablaTrabajos(ts, conCaso) {
   return `<table><thead><tr><th>Trabajo</th>${conCaso ? "<th>Conversación</th>" : ""}<th>Estado</th><th style="min-width:160px">Progreso</th>
@@ -1545,7 +1678,7 @@ function cuerpoWorkers() {
     ${p.trabajos.length ? tablaTrabajos(p.trabajos, true) : `<div class="vacio">Todavía no se ha dividido ninguna conversación.</div>`}</section>`;
 }
 function enlazarWorkers() {
-  const refrescar = async () => { await cargarPlataforma(); const c = $("#workersCuerpo"); if (c) c.innerHTML = cuerpoWorkers(); };
+  const refrescar = async () => { await cargarPlataforma(); pintar($("#workersCuerpo"), cuerpoWorkers()); };
   refrescar();
   sondeo = setInterval(() => { if (ruta().seccion === "workers") refrescar(); else parar(); }, 2000);
 }
@@ -1598,15 +1731,15 @@ function renderParDinamico() {
   $("#ayudaDividir").textContent = enCurso ? "Hay un procesamiento en curso." :
     p?.conectado && !activosTexto ? "Sin workers de texto activos: las sub-tareas esperarán en la cola." : "";
   actualizarPorBloque();
-  $("#parTrabajo").innerHTML = st.trabajo ? cuerpoTrabajo(st.trabajo) :
-    `<section class="panel"><div class="vacio"><h2>Sin procesamientos</h2><p>Esta conversación todavía no se ha dividido entre workers.</p></div></section>`;
+  pintar($("#parTrabajo"), st.trabajo ? cuerpoTrabajo(st.trabajo) :
+    `<section class="panel"><div class="vacio"><h2>Sin procesamientos</h2><p>Esta conversación todavía no se ha dividido entre workers.</p></div></section>`);
   const c = $("#btnCancelarTr");
   if (c) c.onclick = async () => {
     if (!confirm("¿Cancelar el procesamiento? Los workers abortan lo que estén haciendo y liberan sus archivos temporales.")) return;
     try { st.trabajo = await api(`/api/trabajos/${st.trabajo.id}/cancelar`, {method: "POST"}); renderParDinamico(); } catch (e) { alert(e.message); }
   };
-  $("#parHistorial").innerHTML = st.trabajosCaso.length > 1 ? `<section class="panel tabla-scroll"><div class="panel-cab" style="padding-bottom:12px"><div>
-    <h2>Historial</h2><p class="panel-desc">Procesamientos anteriores de esta conversación</p></div></div>${tablaTrabajos(st.trabajosCaso, false)}</section>` : "";
+  pintar($("#parHistorial"), st.trabajosCaso.length > 1 ? `<section class="panel tabla-scroll"><div class="panel-cab" style="padding-bottom:12px"><div>
+    <h2>Historial</h2><p class="panel-desc">Procesamientos anteriores de esta conversación</p></div></div>${tablaTrabajos(st.trabajosCaso, false)}</section>` : "");
 }
 function actualizarPorBloque() {
   const n = st.datos.metadata.total_mensajes, k = Math.max(1, Math.min(64, n, +$("#bloques").value || 1));
@@ -1708,7 +1841,7 @@ async function enlazarParalelo() {
 /* ================================================================ Hallazgos */
 function vHallazgos() {
   return `<p class="subtitulo" style="margin:-12px 0 20px">Mensajes, imágenes y notas de voz que los workers marcaron como agresiones.
-    Severidad <b>alta</b>: amenazas y armas. <b>Media</b>: agresividad, odio o machismo e insultos.</p><div id="hallCuerpo"><div class="vacio">Cargando hallazgos…</div></div>`;
+    Severidad <b>alta</b>: amenazas, ilícitos y armas. <b>Media</b>: agresividad, odio o machismo e insultos.</p><div id="hallCuerpo"><div class="vacio">Cargando hallazgos…</div></div>`;
 }
 async function enlazarHallazgos() {
   const caso = st.caso;
@@ -1742,7 +1875,7 @@ function renderHallazgos() {
   ${noOk.length ? `<div class="aviso" style="margin-bottom:16px">${icono("alerta")}<span>Parte del contenido no se analizó: ${noOk.map(([k, n]) => `${esc(k)} (${n} sub-tareas)`).join("; ")}.</span></div>` : ""}
   <section class="panel kpis">
     ${kpi("Hallazgos", fmtN(hs.length), `procesamiento ${esc(t.id)}`)}
-    ${kpi("Severidad alta", fmtN(H.altas), "amenazas y armas")}
+    ${kpi("Severidad alta", fmtN(H.altas), "amenazas, ilícitos y armas")}
     ${kpi("Severidad media", fmtN(hs.length - H.altas), "agresión, odio, insultos")}
     ${kpi("Mensajes", fmtN(cuenta("tipo", "texto")), "con hallazgos")}
     ${kpi("Imágenes", fmtN(cuenta("tipo", "imagen")), "con armas")}
@@ -1816,7 +1949,7 @@ function renderRiesgos() {
   const pasa = h => (!f.severidad || h.severidad === f.severidad) && (!f.tipo || h.tipo === f.tipo) && (!f.caso || h.caso === f.caso) &&
     (!f.categoria || h.detecciones.some(d => d.categoria === f.categoria)) &&
     (!q || [h.texto, h.transcripcion, h.autor, h.chat, h.archivo].some(x => normalizar(x).includes(q)));
-  // primero los de severidad alta (amenazas y armas), y dentro de cada severidad los más recientes
+  // primero los de severidad alta (amenazas, ilícitos y armas), y dentro de cada severidad los más recientes
   const lista = hs.filter(pasa).sort((a, b) => (b.severidad === "alta") - (a.severidad === "alta") ||
     (b.fecha_hora || "").localeCompare(a.fecha_hora || ""));
   const altas = hs.filter(h => h.severidad === "alta").length;
@@ -1840,7 +1973,7 @@ function renderRiesgos() {
   el.innerHTML = `
   <section class="panel kpis" style="grid-template-columns:repeat(5,1fr)">
     ${kpi("Hallazgos", fmtN(hs.length), "en todas las conversaciones")}
-    ${kpi("Severidad alta", fmtN(altas), "amenazas y armas")}
+    ${kpi("Severidad alta", fmtN(altas), "amenazas, ilícitos y armas")}
     ${kpi("Severidad media", fmtN(hs.length - altas), "agresión, odio, insultos")}
     ${kpi("Conversaciones con riesgo", fmtN(ranking.length), `de ${fmtN(Object.keys(casos).length)} analizadas`)}
     ${kpi("Sin analizar", fmtN(sinAnalizar), "no procesadas con workers")}
@@ -1901,7 +2034,7 @@ function vAlertas() {
   return `<div class="cabecera"><div><h1>Alertas</h1><p class="subtitulo">Avisos de los workers mientras procesan: incidencias de severidad alta en cuanto se detectan, y el cierre de cada procesamiento.</p></div></div>
   <section class="panel tabla-scroll">${a.length ? `<table><thead><tr><th>Hora</th><th>Nivel</th><th>Conversación</th><th>Detalle</th><th>Trabajo</th></tr></thead>
     <tbody>${a.map(x => `<tr class="clic-trabajo" data-caso="${esc(x.caso)}" data-trabajo="${esc(x.trabajo)}" style="cursor:pointer">
-      <td class="fecha">${fmtFechaHora(x.hora)}</td><td>${x.nivel === "alta" ? insigniaSev("alta") : `<span class="insignia ok">Información</span>`}</td>
+      <td class="fecha">${fmtFechaHora(x.hora)}</td><td>${x.nivel === "alta" ? insigniaSev("alta") : x.nivel === "media" ? `<span class="insignia">Aviso</span>` : `<span class="insignia ok">Información</span>`}</td>
       <td>${esc(x.chat || x.caso)}</td><td>${esc(x.texto)}</td><td class="mono">${esc(x.trabajo)}</td></tr>`).join("")}</tbody></table>`
     : `<div class="vacio"><h2>Sin alertas</h2><p>Aparecen aquí cuando los workers procesan una conversación.</p></div>`}</section>`;
 }

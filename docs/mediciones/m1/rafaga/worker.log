@@ -1,0 +1,110 @@
+[supervisor] wa-m1-rafaga: límite de memoria del cgroup = 2200 MB; OOM previos = 0
+Memoria (M1): límite del cgroup 2200 MB · presupuesto 1980 MB (cgroup (memory.max)) · admisión activa
+  plan: texto · ~1158 MB fijos (modelos) · concurrencia 1 (por memoria: 1)
+============================================================
+WORKER wa-m1-rafaga (v2) · pools: texto · concurrencia 1
+Máquina: sharon-ASUS-TUF-Gaming-F15-FX507ZC4-FX507ZC4 · 12th Gen Intel(R) Core(TM) i7-12700H · 20 núcleos · Linux 7.0.0-42-generic (Docker) · sin privilegios
+Coordinador (adjuntos): http://localhost:8201
+Detección: ok, dispositivo cpu
+============================================================
+[*] wa-m1-rafaga esperando sub-tareas de: texto (hasta 1 a la vez)
+  [←] st-48dde6ed (texto: 63 mensajes)
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|██████████| 201/201 [00:00<00:00, 34860.04it/s]
+  [modelo] pysentimiento hate_speech cargado en 2.2 s (233.6 → 502.4 MB de RSS, cpu)
+Map:   0%|          | 0/61 [00:00<?, ? examples/s]Map: 100%|██████████| 61/61 [00:00<00:00, 9120.65 examples/s]
+/usr/local/lib/python3.11/site-packages/torch/utils/data/dataloader.py:759: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
+  super().__init__(loader)
+  [✓] st-48dde6ed en 4.3572 s
+  [←] st-ad4120a2 (texto: 102 mensajes)
+Map:   0%|          | 0/94 [00:00<?, ? examples/s]Map: 100%|██████████| 94/94 [00:00<00:00, 23782.40 examples/s]
+  [✓] st-ad4120a2 en 2.1274 s
+  [←] st-327ee254 (texto: 102 mensajes)
+Map:   0%|          | 0/102 [00:00<?, ? examples/s]Map: 100%|██████████| 102/102 [00:00<00:00, 19160.65 examples/s]
+  [✓] st-327ee254 en 2.3005 s
+  [←] st-10cf6fd0 (texto: 102 mensajes)
+Map:   0%|          | 0/101 [00:00<?, ? examples/s]Map: 100%|██████████| 101/101 [00:00<00:00, 18770.20 examples/s]
+  [✓] st-10cf6fd0 en 1.9052 s
+  [←] st-de5f0e7a (texto: 100 mensajes)
+Map:   0%|          | 0/99 [00:00<?, ? examples/s]Map: 100%|██████████| 99/99 [00:00<00:00, 21682.21 examples/s]
+  [✓] st-de5f0e7a en 2.1703 s
+  [←] st-259cb28d (texto: 27 mensajes)
+Map:   0%|          | 0/26 [00:00<?, ? examples/s]Map: 100%|██████████| 26/26 [00:00<00:00, 11325.36 examples/s]
+  [✓] st-259cb28d en 1.0844 s
+  [←] st-7dc69ffb (texto: 27 mensajes)
+Map:   0%|          | 0/27 [00:00<?, ? examples/s]Map: 100%|██████████| 27/27 [00:00<00:00, 9954.84 examples/s]
+  [✓] st-7dc69ffb en 1.3616 s
+  [←] st-92efc324 (texto: 27 mensajes)
+Map:   0%|          | 0/27 [00:00<?, ? examples/s]Map: 100%|██████████| 27/27 [00:00<00:00, 10652.45 examples/s]
+  [✓] st-92efc324 en 1.461 s
+  [←] st-45c923e0 (texto: 26 mensajes)
+Map:   0%|          | 0/26 [00:00<?, ? examples/s]Map: 100%|██████████| 26/26 [00:00<00:00, 11844.46 examples/s]
+  [✓] st-45c923e0 en 1.1254 s
+  [←] st-6f25425e (texto: 220 mensajes)
+Map:   0%|          | 0/207 [00:00<?, ? examples/s]Map: 100%|██████████| 207/207 [00:00<00:00, 29913.90 examples/s]
+  [✓] st-6f25425e en 2.6061 s
+  [←] st-f24aea7b (texto: 220 mensajes)
+Map:   0%|          | 0/210 [00:00<?, ? examples/s]Map: 100%|██████████| 210/210 [00:00<00:00, 27389.03 examples/s]
+  [✓] st-f24aea7b en 4.8197 s
+  [←] st-5a583ffb (texto: 220 mensajes)
+Map:   0%|          | 0/215 [00:00<?, ? examples/s]Map: 100%|██████████| 215/215 [00:00<00:00, 32370.43 examples/s]
+  [✓] st-5a583ffb en 4.3179 s
+  [←] st-f36297ad (texto: 219 mensajes)
+Map:   0%|          | 0/216 [00:00<?, ? examples/s]Map: 100%|██████████| 216/216 [00:00<00:00, 26718.46 examples/s]
+  [✓] st-f36297ad en 4.1283 s
+  [←] st-a939600b (texto: 63 mensajes)
+Map:   0%|          | 0/63 [00:00<?, ? examples/s]Map: 100%|██████████| 63/63 [00:00<00:00, 19710.66 examples/s]
+  [✓] st-a939600b en 1.458 s
+  [←] st-316f5d92 (texto: 63 mensajes)
+Map:   0%|          | 0/63 [00:00<?, ? examples/s]Map: 100%|██████████| 63/63 [00:00<00:00, 20534.75 examples/s]
+  [✓] st-316f5d92 en 1.733 s
+  [←] st-e4b9a494 (texto: 63 mensajes)
+Map:   0%|          | 0/63 [00:00<?, ? examples/s]Map: 100%|██████████| 63/63 [00:00<00:00, 19551.69 examples/s]
+  [✓] st-e4b9a494 en 1.6227 s
+  [←] st-f508a196 (texto: 128 mensajes)
+Map:   0%|          | 0/127 [00:00<?, ? examples/s]Map: 100%|██████████| 127/127 [00:00<00:00, 24779.11 examples/s]
+  [✓] st-f508a196 en 2.7084 s
+  [←] st-abfab80d (texto: 128 mensajes)
+Map:   0%|          | 0/126 [00:00<?, ? examples/s]Map: 100%|██████████| 126/126 [00:00<00:00, 22929.64 examples/s]
+  [✓] st-abfab80d en 2.8925 s
+  [←] st-df8bf365 (texto: 128 mensajes)
+Map:   0%|          | 0/126 [00:00<?, ? examples/s]Map: 100%|██████████| 126/126 [00:00<00:00, 21017.39 examples/s]
+  [✓] st-df8bf365 en 3.6501 s
+  [←] st-1e619c47 (texto: 125 mensajes)
+Map:   0%|          | 0/124 [00:00<?, ? examples/s]Map: 100%|██████████| 124/124 [00:00<00:00, 26228.94 examples/s]
+  [✓] st-1e619c47 en 2.2398 s
+  [←] st-446fb12d (texto: 109 mensajes)
+Map:   0%|          | 0/101 [00:00<?, ? examples/s]Map: 100%|██████████| 101/101 [00:00<00:00, 18832.79 examples/s]
+  [✓] st-446fb12d en 1.9432 s
+  [←] st-2a8a1103 (texto: 109 mensajes)
+Map:   0%|          | 0/105 [00:00<?, ? examples/s]Map: 100%|██████████| 105/105 [00:00<00:00, 20152.01 examples/s]
+  [✓] st-2a8a1103 en 2.4713 s
+  [←] st-f3cd54c2 (texto: 109 mensajes)
+Map:   0%|          | 0/102 [00:00<?, ? examples/s]Map: 100%|██████████| 102/102 [00:00<00:00, 18365.27 examples/s]
+  [✓] st-f3cd54c2 en 1.9113 s
+  [←] st-1cd82a31 (texto: 108 mensajes)
+Map:   0%|          | 0/103 [00:00<?, ? examples/s]Map: 100%|██████████| 103/103 [00:00<00:00, 24062.23 examples/s]
+  [✓] st-1cd82a31 en 2.1175 s
+  [←] st-2a5fd859 (texto: 23 mensajes)
+Map:   0%|          | 0/12 [00:00<?, ? examples/s]Map: 100%|██████████| 12/12 [00:00<00:00, 5262.61 examples/s]
+  [✓] st-2a5fd859 en 1.1058 s
+  [←] st-b0d5a018 (texto: 23 mensajes)
+Map:   0%|          | 0/18 [00:00<?, ? examples/s]Map: 100%|██████████| 18/18 [00:00<00:00, 6847.22 examples/s]
+  [✓] st-b0d5a018 en 1.0417 s
+  [←] st-d4c27bec (texto: 23 mensajes)
+Map:   0%|          | 0/18 [00:00<?, ? examples/s]Map: 100%|██████████| 18/18 [00:00<00:00, 7612.93 examples/s]
+  [✓] st-d4c27bec en 1.0546 s
+  [←] st-08a6b3d4 (texto: 20 mensajes)
+Map:   0%|          | 0/19 [00:00<?, ? examples/s]Map: 100%|██████████| 19/19 [00:00<00:00, 7690.03 examples/s]
+  [✓] st-08a6b3d4 en 1.0559 s
+  [←] st-fb62ea60 (texto: 150 mensajes)
+Map:   0%|          | 0/139 [00:00<?, ? examples/s]Map: 100%|██████████| 139/139 [00:00<00:00, 10723.57 examples/s]
+  [✓] st-fb62ea60 en 4.5278 s
+  [←] st-39beecf8 (texto: 150 mensajes)
+Map:   0%|          | 0/150 [00:00<?, ? examples/s]Map: 100%|██████████| 150/150 [00:00<00:00, 23343.19 examples/s]
+  [✓] st-39beecf8 en 2.8402 s
+  [←] st-5b4350dd (texto: 150 mensajes)
+Map:   0%|          | 0/147 [00:00<?, ? examples/s]Map: 100%|██████████| 147/147 [00:00<00:00, 30257.78 examples/s]
+  [✓] st-5b4350dd en 2.4051 s
+  [←] st-6e192d57 (texto: 148 mensajes)
+Map:   0%|          | 0/146 [00:00<?, ? examples/s]Map: 100%|██████████| 146/146 [00:00<00:00, 25088.84 examples/s]
+  [✓] st-6e192d57 en 2.5861 s

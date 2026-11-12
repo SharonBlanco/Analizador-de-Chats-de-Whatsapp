@@ -1,0 +1,80 @@
+[supervisor] wa-m1-oom: límite de memoria del cgroup = 700 MB; OOM previos = 0
+Memoria (M1): límite del cgroup 700 MB · presupuesto 630 MB (cgroup (memory.max)) · ADMISIÓN DESACTIVADA (WA_ADMISION=0)
+  plan: texto · ~1159 MB fijos (modelos) · concurrencia 1 (por memoria: 1)
+============================================================
+WORKER wa-m1-oom (v2) · pools: texto · concurrencia 1
+Máquina: sharon-ASUS-TUF-Gaming-F15-FX507ZC4-FX507ZC4 · 12th Gen Intel(R) Core(TM) i7-12700H · 20 núcleos · Linux 7.0.0-42-generic (Docker) · sin privilegios
+Coordinador (adjuntos): http://localhost:8201
+Detección: ok, dispositivo cpu
+============================================================
+[*] wa-m1-oom esperando sub-tareas de: texto (hasta 1 a la vez)
+  [←] st-572078ed (texto: 126 mensajes)
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|██████████| 201/201 [00:00<00:00, 34392.16it/s]
+  [modelo] pysentimiento hate_speech cargado en 2.5 s (233.9 → 501.0 MB de RSS, cpu)
+[supervisor] ✗ OOM: el kernel mató al worker (límite 700.0 MB, pico 700.0 MB) con 1 sub-tarea(s) en curso: st-572078ed (1.ª vez)
+[supervisor] reiniciando el worker en 2 s (reinicio n.º 1)
+Memoria (M1): límite del cgroup 700 MB · presupuesto 630 MB (cgroup (memory.max)) · ADMISIÓN DESACTIVADA (WA_ADMISION=0)
+  plan: texto · ~1156 MB fijos (modelos) · concurrencia 1 (por memoria: 1)
+  [supervisor] reinicio n.º 1
+============================================================
+WORKER wa-m1-oom (v2) · pools: texto · concurrencia 1
+Máquina: sharon-ASUS-TUF-Gaming-F15-FX507ZC4-FX507ZC4 · 12th Gen Intel(R) Core(TM) i7-12700H · 20 núcleos · Linux 7.0.0-42-generic (Docker) · sin privilegios
+Coordinador (adjuntos): http://localhost:8201
+Detección: ok, dispositivo cpu
+============================================================
+[*] wa-m1-oom esperando sub-tareas de: texto (hasta 1 a la vez)
+  [M1] st-572078ed provocó un OOM antes: se procesa sola (modo exclusivo)
+  [←] st-572078ed (texto: 126 mensajes) · re-entregada
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|██████████| 201/201 [00:00<00:00, 39926.83it/s]
+  [modelo] pysentimiento hate_speech cargado en 2.6 s (230.8 → 498.2 MB de RSS, cpu)
+[supervisor] ✗ OOM: el kernel mató al worker (límite 700.0 MB, pico 700.0 MB) con 1 sub-tarea(s) en curso: st-572078ed (2.ª vez)
+[supervisor] reiniciando el worker en 4 s (reinicio n.º 2)
+Memoria (M1): límite del cgroup 700 MB · presupuesto 630 MB (cgroup (memory.max)) · ADMISIÓN DESACTIVADA (WA_ADMISION=0)
+  plan: texto · ~1158 MB fijos (modelos) · concurrencia 1 (por memoria: 1)
+  [supervisor] reinicio n.º 2
+============================================================
+WORKER wa-m1-oom (v2) · pools: texto · concurrencia 1
+Máquina: sharon-ASUS-TUF-Gaming-F15-FX507ZC4-FX507ZC4 · 12th Gen Intel(R) Core(TM) i7-12700H · 20 núcleos · Linux 7.0.0-42-generic (Docker) · sin privilegios
+Coordinador (adjuntos): http://localhost:8201
+Detección: ok, dispositivo cpu
+============================================================
+[*] wa-m1-oom esperando sub-tareas de: texto (hasta 1 a la vez)
+  [✗] st-572078ed ya provocó 2 OOM en este nodo: se rechaza para que la tome otro
+  [←] st-e250f6c3 (texto: 126 mensajes)
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|██████████| 201/201 [00:00<00:00, 28057.88it/s]
+  [modelo] pysentimiento hate_speech cargado en 2.76 s (233.4 → 498.9 MB de RSS, cpu)
+[supervisor] ✗ OOM: el kernel mató al worker (límite 700.0 MB, pico 700.0 MB) con 1 sub-tarea(s) en curso: st-e250f6c3 (1.ª vez)
+[supervisor] reiniciando el worker en 8 s (reinicio n.º 3)
+Memoria (M1): límite del cgroup 700 MB · presupuesto 630 MB (cgroup (memory.max)) · ADMISIÓN DESACTIVADA (WA_ADMISION=0)
+  plan: texto · ~1158 MB fijos (modelos) · concurrencia 1 (por memoria: 1)
+  [supervisor] reinicio n.º 3
+============================================================
+WORKER wa-m1-oom (v2) · pools: texto · concurrencia 1
+Máquina: sharon-ASUS-TUF-Gaming-F15-FX507ZC4-FX507ZC4 · 12th Gen Intel(R) Core(TM) i7-12700H · 20 núcleos · Linux 7.0.0-42-generic (Docker) · sin privilegios
+Coordinador (adjuntos): http://localhost:8201
+Detección: ok, dispositivo cpu
+============================================================
+[*] wa-m1-oom esperando sub-tareas de: texto (hasta 1 a la vez)
+  [M1] st-e250f6c3 provocó un OOM antes: se procesa sola (modo exclusivo)
+  [←] st-e250f6c3 (texto: 126 mensajes) · re-entregada
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|██████████| 201/201 [00:00<00:00, 42396.54it/s]
+  [modelo] pysentimiento hate_speech cargado en 2.66 s (233.6 → 500.4 MB de RSS, cpu)
+[supervisor] ✗ OOM: el kernel mató al worker (límite 700.0 MB, pico 700.0 MB) con 1 sub-tarea(s) en curso: st-e250f6c3 (2.ª vez)
+[supervisor] reiniciando el worker en 16 s (reinicio n.º 4)
+Memoria (M1): límite del cgroup 700 MB · presupuesto 630 MB (cgroup (memory.max)) · ADMISIÓN DESACTIVADA (WA_ADMISION=0)
+  plan: texto · ~1156 MB fijos (modelos) · concurrencia 1 (por memoria: 1)
+  [supervisor] reinicio n.º 4
+============================================================
+WORKER wa-m1-oom (v2) · pools: texto · concurrencia 1
+Máquina: sharon-ASUS-TUF-Gaming-F15-FX507ZC4-FX507ZC4 · 12th Gen Intel(R) Core(TM) i7-12700H · 20 núcleos · Linux 7.0.0-42-generic (Docker) · sin privilegios
+Coordinador (adjuntos): http://localhost:8201
+Detección: ok, dispositivo cpu
+============================================================
+[*] wa-m1-oom esperando sub-tareas de: texto (hasta 1 a la vez)
+  [✗] st-e250f6c3 ya provocó 2 OOM en este nodo: se rechaza para que la tome otro
+  [✗] st-572078ed ya provocó 2 OOM en este nodo: se rechaza para que la tome otro
+  [✗] st-e250f6c3 ya provocó 2 OOM en este nodo: se rechaza para que la tome otro
+  [✗] st-572078ed ya provocó 2 OOM en este nodo: se rechaza para que la tome otro
+  [✗] st-e250f6c3 ya provocó 2 OOM en este nodo: se rechaza para que la tome otro
+  [✗] st-572078ed ya provocó 2 OOM en este nodo: se rechaza para que la tome otro
+  [✗] st-e250f6c3 ya provocó 2 OOM en este nodo: se rechaza para que la tome otro

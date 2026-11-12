@@ -1,0 +1,15 @@
+[supervisor] wa-m1-adm: límite de memoria del cgroup = 700 MB; OOM previos = 0
+Memoria (M1): límite del cgroup 700 MB · presupuesto 630 MB (cgroup (memory.max)) · admisión activa
+  plan: texto · ~232 MB fijos (modelos) · concurrencia 1 (por memoria: 13)
+  degradado: texto sin modelo (solo reglas): el modelo necesita 1744 MB
+============================================================
+WORKER wa-m1-adm (v2) · pools: texto · concurrencia 1
+Máquina: sharon-ASUS-TUF-Gaming-F15-FX507ZC4-FX507ZC4 · 12th Gen Intel(R) Core(TM) i7-12700H · 20 núcleos · Linux 7.0.0-42-generic (Docker) · sin privilegios
+Coordinador (adjuntos): http://localhost:8201
+Detección: ok, dispositivo cpu
+============================================================
+[*] wa-m1-adm esperando sub-tareas de: texto (hasta 1 a la vez)
+  [←] st-49c32011 (texto: 126 mensajes)
+  [✓] st-49c32011 en 0.0043 s
+  [←] st-e33ee1c4 (texto: 126 mensajes)
+  [✓] st-e33ee1c4 en 0.0035 s

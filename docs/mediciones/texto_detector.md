@@ -39,3 +39,21 @@ La primera versión incluía "basura", "cerdo" y "cerda". Al procesar los chats 
 | 017_familia_quesada | 0.43 → 0.96 | 0.62 → 0.60 | 0.51 → 0.73 |
 
 Las 4 falsas alarmas restantes son comentarios reales de OffendES que sus anotadores marcaron como no ofensivos, aunque son discutibles, por ejemplo "que mina tan ridícula".
+
+## Ajuste de las reglas de amenaza (11/11/2026)
+**Problema reportado:** el mensaje "voy a matar a alguien" no generó alerta. La regla exigía que la amenaza fuera dirigida con "te" ("te voy a matar"), y el modelo (entrenado con discurso de odio, no con amenazas) no lo marcó como agresivo.
+
+**Cambio:** una regla general de intención de daño, "(te/lo/le…) voy / vamos / pienso / quiero + matar, apuñalar, disparar, golpear, quemar, secuestrar…", más "te van a…" y "le voy a dar un tiro / una paliza". Se excluyen:
+- usos inofensivos: "matar el tiempo / el hambre";
+- frases sobre uno mismo, con "me" o "nos" delante: "me voy a matar estudiando";
+- narraciones en pasado: "la mató" se compara respetando la tilde, para no confundirlo con "la mato".
+
+También se quitó la regla de "cuídate / ten cuidado", que marcaba frases cariñosas.
+
+| Prueba | Antes | Después |
+|---|---|---|
+| 24 frases de prueba (15 amenazas y 9 normales parecidas) | no detectaba "voy a matar a alguien", entre otras | 0 errores |
+| Comentarios de OffendES no ofensivos marcados como amenaza | 31 de 11 055 | 11 de 11 055 (0,1 %) |
+| Mensajes del dataset generado marcados como amenaza | — | 3 de 19 813 (los 3 son comentarios ofensivos reales) |
+
+Las 11 falsas alarmas restantes son ambiguas incluso para una persona, por ejemplo citas de amenazas ("y si te mato aquí mismo") o "la mato" escrito sin tilde.

@@ -1,0 +1,56 @@
+{
+  "t0": 1794455490.7925725,
+  "casos": 1,
+  "bloques": 2,
+  "adjuntos": false,
+  "por_estado": {
+    "completed": 1
+  },
+  "subtareas": 2,
+  "subtareas_por_estado": {
+    "completed": 2
+  },
+  "segundos_total": 0.0,
+  "throughput_casos_min": 2751.78,
+  "throughput_subtareas_s": 91.73,
+  "latencia_s": {
+    "p50": 0.0,
+    "p95": 0.0,
+    "max": 0.0,
+    "min": 0.0
+  },
+  "oom": [],
+  "reintentos": 0,
+  "reasignaciones": 0,
+  "errores": [],
+  "workers": {
+    "wa-m1-adm": {
+      "pools": [
+        "texto"
+      ],
+      "concurrencia": 1,
+      "completadas": 2,
+      "memoria": {
+        "limite_mb": 700.0,
+        "uso_mb": 173.2,
+        "pico_mb": 175.1,
+        "oom_kills": 0,
+        "reservado_mb": 0.0,
+        "capacidad_mb": 397.8,
+        "esperas": 0,
+        "exclusiva": false,
+        "rss_mb": 233.5,
+        "pss_mb": 229.1,
+        "presupuesto_mb": 630.0,
+        "persistente_mb": 232.2,
+        "admision": true,
+        "rechazados": {},
+        "decisiones": [
+          "texto sin modelo (solo reglas): el modelo necesita 1744 MB"
+        ],
+        "reinicios": 0,
+        "supervisado": true
+      }
+    }
+  }
+}

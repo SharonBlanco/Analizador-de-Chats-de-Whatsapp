@@ -1,0 +1,89 @@
+{
+  "t0": 1794455316.6485603,
+  "casos": 1,
+  "bloques": 2,
+  "adjuntos": false,
+  "por_estado": {
+    "failed": 1
+  },
+  "subtareas": 2,
+  "subtareas_por_estado": {
+    "failed": 2
+  },
+  "segundos_total": 57.7,
+  "throughput_casos_min": 1.04,
+  "throughput_subtareas_s": 0.0,
+  "latencia_s": {
+    "p50": 57.7,
+    "p95": 57.7,
+    "max": 57.7,
+    "min": 57.7
+  },
+  "oom": [
+    {
+      "subtarea": "st-572078ed",
+      "worker": "wa-m1-oom",
+      "veces": 1,
+      "limite_mb": 700.0,
+      "pico_mb": 700.0,
+      "hora": "2026-11-11T21:48:39"
+    },
+    {
+      "subtarea": "st-572078ed",
+      "worker": "wa-m1-oom",
+      "veces": 2,
+      "limite_mb": 700.0,
+      "pico_mb": 700.0,
+      "hora": "2026-11-11T21:48:45"
+    },
+    {
+      "subtarea": "st-e250f6c3",
+      "worker": "wa-m1-oom",
+      "veces": 1,
+      "limite_mb": 700.0,
+      "pico_mb": 700.0,
+      "hora": "2026-11-11T21:48:53"
+    },
+    {
+      "subtarea": "st-e250f6c3",
+      "worker": "wa-m1-oom",
+      "veces": 2,
+      "limite_mb": 700.0,
+      "pico_mb": 700.0,
+      "hora": "2026-11-11T21:49:05"
+    }
+  ],
+  "reintentos": 6,
+  "reasignaciones": 0,
+  "errores": [
+    "OOM: superó la memoria de wa-m1-oom (700.0 MB) 2 veces"
+  ],
+  "workers": {
+    "wa-m1-oom": {
+      "pools": [
+        "texto"
+      ],
+      "concurrencia": 1,
+      "completadas": 0,
+      "memoria": {
+        "limite_mb": 700.0,
+        "uso_mb": 173.1,
+        "pico_mb": 700.0,
+        "oom_kills": 4,
+        "reservado_mb": 0.0,
+        "capacidad_mb": null,
+        "esperas": 0,
+        "exclusiva": false,
+        "rss_mb": 230.9,
+        "pss_mb": 226.4,
+        "presupuesto_mb": 630.0,
+        "persistente_mb": 1155.8,
+        "admision": false,
+        "rechazados": {},
+        "decisiones": [],
+        "reinicios": 4,
+        "supervisado": true
+      }
+    }
+  }
+}

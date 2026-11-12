@@ -1,7 +1,13 @@
 pika==1.3.2
 psutil==5.9.6
-# Detección (opcional: sin estas librerías el worker solo hace estadísticas y verificación)
-torch
-pysentimiento
-ultralytics
-faster-whisper
+# Detección (opcional: sin estas librerías el worker solo hace estadísticas y verificación).
+# Versiones fijas: las mismas con que se midió (docs/mediciones/). En Docker, torch y torchvision
+# se instalan antes desde el índice de solo CPU (ver Dockerfile).
+torch==2.15.0
+torchvision==0.29.2
+transformers==5.22.2
+accelerate==1.15.0
+pysentimiento==0.7.3
+ultralytics==8.4.210
+faster-whisper==1.2.1
+ctranslate2==4.9.0

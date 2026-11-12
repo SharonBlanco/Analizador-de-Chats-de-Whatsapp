@@ -1,0 +1,168 @@
+[
+  {
+    "estrategia": "independientes",
+    "n": 1,
+    "segundos_hasta_listo": 3.9,
+    "reposo": {
+      "rss": 492.0,
+      "pss": 489.1,
+      "uss": 486.3,
+      "procesos": 1,
+      "cgroup": 519.8
+    },
+    "tras_inferencia": {
+      "rss": 934.2,
+      "pss": 931.3,
+      "uss": 928.5,
+      "procesos": 1,
+      "cgroup": 593.7
+    },
+    "cgroup_base": 11.5
+  },
+  {
+    "estrategia": "fork",
+    "n": 1,
+    "segundos_hasta_listo": 3.1,
+    "reposo": {
+      "rss": 845.0,
+      "pss": 491.2,
+      "uss": 139.3,
+      "procesos": 2,
+      "cgroup": 586.9
+    },
+    "tras_inferencia": {
+      "rss": 1317.9,
+      "pss": 968.0,
+      "uss": 620.7,
+      "procesos": 2,
+      "cgroup": 635.8
+    },
+    "cgroup_base": 231.2
+  },
+  {
+    "estrategia": "hilos",
+    "n": 1,
+    "segundos_hasta_listo": 2.9,
+    "reposo": {
+      "rss": 491.4,
+      "pss": 488.4,
+      "uss": 485.5,
+      "procesos": 1,
+      "cgroup": 582.6
+    },
+    "tras_inferencia": {
+      "rss": 929.7,
+      "pss": 926.8,
+      "uss": 923.8,
+      "procesos": 1,
+      "cgroup": 593.4
+    },
+    "cgroup_base": 230.5
+  },
+  {
+    "estrategia": "independientes",
+    "n": 2,
+    "segundos_hasta_listo": 3.1,
+    "reposo": {
+      "rss": 979.0,
+      "pss": 841.2,
+      "uss": 707.4,
+      "procesos": 2,
+      "cgroup": 935.8
+    },
+    "tras_inferencia": {
+      "rss": 1864.0,
+      "pss": 1298.3,
+      "uss": 736.6,
+      "procesos": 2,
+      "cgroup": 966.8
+    },
+    "cgroup_base": 231.2
+  },
+  {
+    "estrategia": "fork",
+    "n": 2,
+    "segundos_hasta_listo": 3.0,
+    "reposo": {
+      "rss": 1202.5,
+      "pss": 496.7,
+      "uss": 144.1,
+      "procesos": 3,
+      "cgroup": 591.1
+    },
+    "tras_inferencia": {
+      "rss": 2148.3,
+      "pss": 1021.0,
+      "uss": 244.3,
+      "procesos": 3,
+      "cgroup": 689.4
+    },
+    "cgroup_base": 234.8
+  },
+  {
+    "estrategia": "hilos",
+    "n": 2,
+    "segundos_hasta_listo": 3.0,
+    "reposo": {
+      "rss": 491.8,
+      "pss": 488.9,
+      "uss": 486.0,
+      "procesos": 1,
+      "cgroup": 582.0
+    },
+    "tras_inferencia": {
+      "rss": 1098.7,
+      "pss": 1095.8,
+      "uss": 1092.9,
+      "procesos": 1,
+      "cgroup": 762.0
+    },
+    "cgroup_base": 231.0
+  },
+  {
+    "estrategia": "independientes",
+    "n": 3,
+    "error": "un proceso muri\u00f3 (OOM dentro del l\u00edmite del contenedor)",
+    "cgroup_oom_kills": "2"
+  },
+  {
+    "estrategia": "fork",
+    "n": 3,
+    "segundos_hasta_listo": 4.0,
+    "reposo": {
+      "rss": 1558.1,
+      "pss": 497.8,
+      "uss": 144.2,
+      "procesos": 4,
+      "cgroup": 531.8
+    },
+    "tras_inferencia": {
+      "rss": 2969.1,
+      "pss": 1074.5,
+      "uss": 298.9,
+      "procesos": 4,
+      "cgroup": 653.1
+    },
+    "cgroup_base": 7.8
+  },
+  {
+    "estrategia": "hilos",
+    "n": 3,
+    "segundos_hasta_listo": 3.7,
+    "reposo": {
+      "rss": 494.0,
+      "pss": 491.0,
+      "uss": 488.1,
+      "procesos": 1,
+      "cgroup": 583.8
+    },
+    "tras_inferencia": {
+      "rss": 1006.0,
+      "pss": 1003.0,
+      "uss": 1000.1,
+      "procesos": 1,
+      "cgroup": 668.4
+    },
+    "cgroup_base": 140.8
+  }
+]
