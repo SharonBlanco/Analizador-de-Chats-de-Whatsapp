@@ -242,6 +242,8 @@ def descargar_por_bloques(sub: dict, destino: Path) -> dict:
     n, tam, total = len(man["bloques"]), man["bloque"], man["bytes"]
     reintentos = [0]
     t0 = time.perf_counter()
+    from threading import Lock
+    candado_escritura = Lock()
     fd = os.open(destino, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     try:
         os.ftruncate(fd, total)                         # reserva el tamaño final: cada bloque va a su lugar
@@ -260,7 +262,19 @@ def descargar_por_bloques(sub: dict, destino: Path) -> dict:
                             con, base = _conexion(origen)
                             estado, datos = 0, b""
                         if estado == 206 and hashlib.sha256(datos).hexdigest() == man["bloques"][i]:
-                            os.pwrite(fd, datos, a)
+                            if hasattr(os, "pwrite"):
+                                os.pwrite(fd, datos, a)
+                            else:
+                                # Windows no dispone de os.pwrite.
+                                # Sincronizar seek + write para evitar solapamientos.
+                                with candado_escritura:
+                                    os.lseek(fd, a, os.SEEK_SET)
+                                    vista = memoryview(datos)
+                                    while vista:
+                                        escritos = os.write(fd, vista)
+                                        if escritos <= 0:
+                                            raise OSError("No se pudo escribir el bloque")
+                                        vista = vista[escritos:]
                             break
                         reintentos[0] += 1             # bloque dañado o corte: se repite SOLO este bloque
                     else:
