@@ -15,6 +15,8 @@ Escucha solo en 127.0.0.1: los chats no salen de esta computadora.
 from __future__ import annotations
 
 import argparse
+from http.cookies import SimpleCookie
+import hmac
 import hashlib
 import hmac
 import json
@@ -32,6 +34,8 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 AQUI = Path(__file__).resolve().parent
 sys.path.insert(0, str(AQUI))
+from sesiones import Sesiones
+from usuarios import Usuarios, autorizado
 from importar import ErrorImportacion, importar  # noqa: E402
 from whatsapp_formato import parsear_archivo  # noqa: E402
 from estadisticas import calcular as calcular_estadisticas  # noqa: E402
@@ -64,7 +68,9 @@ mimetypes.add_type("image/webp", ".webp")
 
 DATASET: Path = Path("dataset_whatsapp")
 ORG: Organizacion = Organizacion(DATASET)
-PLATAFORMA = None          # coordinador.Plataforma, se crea en main()
+PLATAFORMA = None
+SESIONES_M4 = Sesiones()
+CUENTAS_M4 = None          # coordinador.Plataforma, se crea en main()
 
 # Caché de chats parseados: {caso: (mtime_ns de chat.txt, mensajes)}.
 # El panorama general recorre todos los chats; sin caché se releería cada .txt.
@@ -206,11 +212,115 @@ class Manejador(BaseHTTPRequestHandler):
         carpeta = DATASET / nombre
         return carpeta if dentro(DATASET, carpeta) and (carpeta / "metadata.json").is_file() else None
 
+    # --------------------------------------------- M4: autenticacion y RBAC
+    def _cookie_token(self):
+        try:
+            cookie = SimpleCookie()
+            cookie.load(self.headers.get('Cookie', ''))
+            return cookie['marea_sid'].value if 'marea_sid' in cookie else None
+        except Exception:
+            return None
+
+    def _sesion(self):
+        return SESIONES_M4.obtener(self._cookie_token())
+
+    def _auth_post(self, partes):
+        """Permisos por endpoint; las rutas no clasificadas no se ejecutan."""
+        if partes in (['api', 'subir'], ['api', 'importar'], ['api', 'pegar'],
+                      ['api', 'telefono', 'importar'], ['api', 'carpetas'],
+                      ['api', 'mover']):
+            return 'importar'
+        if len(partes) == 4 and partes[:2] == ['api', 'casos'] and partes[3] == 'paralelo':
+            return 'analizar'
+        if partes == ['api', 'plataforma', 'reiniciar']:
+            return 'reiniciar'
+        if partes == ['api', 'trabajos', 'cancelar_todos']:
+            return 'cancelar'
+        if partes == ['api', 'trabajos', 'reanudar_todos']:
+            return 'reanudar'
+        if len(partes) == 4 and partes[:2] == ['api', 'trabajos']:
+            return {'cancelar':'cancelar', 'reanudar':'reanudar'}.get(partes[3])
+        if len(partes) == 4 and partes[:2] == ['api', 'carpetas'] and partes[3] == 'renombrar':
+            return 'configurar'
+        return None
+
+    def _cookie_segura(self, token):
+        # Secure solo funciona sobre HTTPS; la prueba local utiliza HTTP en loopback.
+        seguro = '; Secure' if isinstance(self.connection, __import__('ssl').SSLSocket) else ''
+        return f'marea_sid={token}; HttpOnly; SameSite=Strict; Path=/{seguro}'
+
+    def _login(self):
+        if self.headers.get('Origin') not in (None,
+            f'http://localhost:{self.server.server_port}',
+            f'http://127.0.0.1:{self.server.server_port}'):
+            return self._error('Origen no permitido', 403)
+        if self.headers.get_content_type() != 'application/json':
+            return self._error('Contenido invalido', 415)
+        try:
+            datos = self._leer_json()
+            nombre, clave = str(datos.get('usuario','')), str(datos.get('contrasena',''))
+            if len(nombre)>64 or len(clave)>1024:
+                return self._error('Credenciales invalidas', 401)
+            rol = CUENTAS_M4.autenticar(nombre, clave)
+        except (ValueError, TypeError, UnicodeError):
+            return self._error('Credenciales invalidas', 401)
+        if not rol:
+            return self._error('Credenciales invalidas', 401)
+        token = SESIONES_M4.crear(nombre, rol)
+        contenido = json.dumps({'usuario':nombre,'rol':rol},ensure_ascii=False).encode()
+        self.send_response(200)
+        self.send_header('Content-Type','application/json; charset=utf-8')
+        self.send_header('Set-Cookie',self._cookie_segura(token))
+        self.send_header('Cache-Control','no-store')
+        self.send_header('Content-Length',str(len(contenido)))
+        self.end_headers()
+        self.wfile.write(contenido)
+
+    def _cerrar_sesion(self):
+        token = self._cookie_token()
+        sesion = SESIONES_M4.obtener(token)
+        if not sesion:
+            return self._error('No autenticado',401)
+        if not SESIONES_M4.verificar_csrf(token, self.headers.get('X-CSRF-Token','')):
+            return self._error('CSRF invalido',403)
+        SESIONES_M4.cerrar(token)
+        contenido = b'{"ok":true}'
+        self.send_response(200)
+        self.send_header('Content-Type','application/json')
+        self.send_header('Set-Cookie',self._cookie_segura('')+'; Max-Age=0')
+        self.send_header('Content-Length',str(len(contenido)))
+        self.end_headers()
+        self.wfile.write(contenido)
+
+    def _pagina_login(self):
+        pagina = (AQUI / 'web' / 'login.html').read_bytes()
+        self.send_response(200)
+        self.send_header('Content-Type','text/html; charset=utf-8')
+        self.send_header('Cache-Control','no-store')
+        self.send_header('Content-Length',str(len(pagina)))
+        self.end_headers()
+        self.wfile.write(pagina)
+
     # ---------------------------------------------------------------- GET
     def do_GET(self):
         partes, qs = self._ruta()
+        if partes == ['login']:
+            return self._pagina_login()
+        sesion = self._sesion()
+        if not sesion:
+            if not partes:
+                return self._pagina_login()
+            return self._error('No autenticado', 401)
+        if partes == ['api', 'auth', 'me']:
+            return self._json({'usuario':sesion['usuario'], 'rol':sesion['rol'], 'csrf':sesion['csrf']})
+        if not autorizado(sesion['rol'],'consultar'):
+            return self._error('403 prohibido', 403)
         if not partes:
             cuerpo = INDEX.read_bytes()
+            rol = sesion['rol'].encode('ascii')
+            token_csrf = json.dumps(sesion['csrf']).encode('ascii')
+            inyeccion = b'<script>window.__M4_ROLE=' + json.dumps(sesion['rol']).encode() + b';window.__M4_CSRF=' + token_csrf + b';</script>'
+            cuerpo = cuerpo.replace(b'</head>',inyeccion+b'</head>',1)
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(cuerpo)))
@@ -323,6 +433,20 @@ class Manejador(BaseHTTPRequestHandler):
     # ---------------------------------------------------------------- POST
     def do_POST(self):
         partes, qs = self._ruta()
+        if partes == ['api', 'auth', 'login']:
+            return self._login()
+        if partes == ['api', 'auth', 'logout']:
+            return self._cerrar_sesion()
+        sesion = self._sesion()
+        if not sesion:
+            return self._error('No autenticado',401)
+        accion = self._auth_post(partes)
+        if accion is None:
+            return self._error('No existe',404)
+        if not autorizado(sesion['rol'],accion):
+            return self._error('403 prohibido',403)
+        if not SESIONES_M4.verificar_csrf(self._cookie_token(), self.headers.get('X-CSRF-Token','')):
+            return self._error('CSRF invalido',403)
         try:
             if partes == ["api", "subir"]:
                 return self._subir(qs)
@@ -551,7 +675,7 @@ class ManejadorWorkers(Manejador):
 
 
 def main():
-    global DATASET, ORG, PLATAFORMA
+    global DATASET, ORG, PLATAFORMA, CUENTAS_M4
     ap = argparse.ArgumentParser(description="Interfaz web local del importador de WhatsApp")
     ap.add_argument("--puerto", type=int, default=8100)
     ap.add_argument("--salida", type=Path, default=AQUI.parent / "dataset_whatsapp",
@@ -566,11 +690,34 @@ def main():
     DATASET = a.salida.resolve()
     DATASET.mkdir(parents=True, exist_ok=True)
     ORG = Organizacion(DATASET)
+    CUENTAS_M4 = Usuarios(DATASET / '.seguridad' / 'usuarios.json')
+    if not CUENTAS_M4._leer()['usuarios']:
+        raise SystemExit('[M4] Crea primero una cuenta de administrador con mensajeria/usuarios.py')
     servidor = ThreadingHTTPServer(("127.0.0.1", a.puerto), Manejador)
     print(f"Importador de WhatsApp en http://localhost:{a.puerto}")
     print(f"Casos en {DATASET}   (Ctrl+C para detener)")
     origenes = (f"http://localhost:{a.puerto}", f"http://127.0.0.1:{a.puerto}")
-    receptor = Receptor(SUBIDAS, importar_lote, origenes=origenes)
+    def autorizar_m3(cabeceras, metodo, ruta):
+        if metodo == 'OPTIONS':
+            return 204
+        cookie = SimpleCookie()
+        try:
+            cookie.load(cabeceras.get('cookie',''))
+            token = cookie['marea_sid'].value if 'marea_sid' in cookie else ''
+        except Exception:
+            token = ''
+        sesion = SESIONES_M4.obtener(token)
+        if not sesion:
+            return 401
+        if metodo == 'GET':
+            return 200 if autorizado(sesion['rol'],'consultar') else 403
+        if not autorizado(sesion['rol'],'importar'):
+            return 403
+        if not SESIONES_M4.verificar_csrf(token,cabeceras.get('x-csrf-token','')):
+            return 403
+        return 200
+
+    receptor = Receptor(SUBIDAS, importar_lote, origenes=origenes, autorizacion=autorizar_m3)
     receptor.iniciar_en_hilo("127.0.0.1", a.puerto_receptor)
     print(f"[M3] receptor asíncrono en 127.0.0.1:{a.puerto_receptor} · contrapresión «{receptor.politica}», "
           f"cola de {receptor.cola_max}, {receptor.n_importadores} importadores")

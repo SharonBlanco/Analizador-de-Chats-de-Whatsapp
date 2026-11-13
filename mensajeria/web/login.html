@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Marea · Acceso seguro</title><style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f3faf8;color:#263b38;font:15px system-ui,sans-serif;padding:18px}
+main{background:white;border:1px solid #d6eee6;border-radius:14px;padding:38px;max-width:420px;width:100%;box-shadow:0 16px 40px #1232}
+h1{font-size:30px;margin:0 0 5px}p{color:#667b76;margin:0 0 25px}label{display:block;font-weight:600;margin:16px 0 6px}
+input{width:100%;padding:13px;border:1px solid #b9d3cb;border-radius:7px;font:inherit}button{margin-top:23px;width:100%;padding:13px;border:0;border-radius:7px;color:white;background:#236b60;font:inherit;font-weight:700;cursor:pointer}
+#error{color:#a3271b;margin:13px 0 0;min-height:1.4em}
+</style></head><body><main><h1>Marea</h1><p>Acceso al analizador de conversaciones</p>
+<form id="login"><label for="usuario">Usuario</label><input id="usuario" autocomplete="username" required autofocus>
+<label for="clave">Contraseña</label><input id="clave" type="password" autocomplete="current-password" required>
+<button type="submit">Iniciar sesión</button></form><p id="error" role="alert"></p></main>
+<script>document.getElementById('login').addEventListener('submit',async e=>{
+  e.preventDefault(); const error=document.getElementById('error');error.textContent='';
+  try {const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({usuario:document.getElementById('usuario').value,contrasena:document.getElementById('clave').value})});
+  if(!r.ok)throw Error('Usuario o contraseña incorrectos');location.replace('/');
+  }catch(x){error.textContent=x.message;}
+});</script></body></html>

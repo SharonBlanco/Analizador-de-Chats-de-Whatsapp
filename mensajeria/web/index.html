@@ -367,6 +367,24 @@ details.ayuda-tel ol { font-size: 12.5px; color: var(--texto); padding-left: 18p
 @media (max-width: 560px) { .kpis { grid-template-columns: repeat(2, 1fr); } .kpi { border-left: 0 !important; border-top: 1px solid var(--borde); }
   .kpi:nth-child(-n+2) { border-top: 0; } .kpi:nth-child(even) { border-left: 1px solid var(--borde) !important; } }
 </style>
+
+<style id="m4-rbac">
+body[data-m4-role="analista"] #btnReiniciarPlat,
+body[data-m4-role="analista"] #btnCancelarTodos,
+body[data-m4-role="analista"] #btnReanudarTodos,
+body[data-m4-role="analista"] #btnCancelarTr,
+body[data-m4-role="analista"] #btnReanudarTr,
+body[data-m4-role="analista"] #btnBorrar,
+body[data-m4-role="analista"] #btnEliminarLote,
+body[data-m4-role="analista"] #btnBorrarCarpeta,
+body[data-m4-role="analista"] #btnRenombrar,
+body[data-m4-role="supervisor"] #btnReiniciarPlat,
+body[data-m4-role="supervisor"] #btnBorrar,
+body[data-m4-role="supervisor"] #btnEliminarLote,
+body[data-m4-role="supervisor"] #btnBorrarCarpeta,
+body[data-m4-role="supervisor"] #btnRenombrar {display:none !important;}
+</style>
+<script>document.addEventListener('DOMContentLoaded',()=>{document.body.dataset.m4Role=window.__M4_ROLE||'';});</script>
 </head>
 <body>
 <div class="app">
@@ -423,6 +441,21 @@ details.ayuda-tel ol { font-size: 12.5px; color: var(--texto); padding-left: 18p
 <script>
 "use strict";
 /* ================================================================ utilidades */
+
+// M4: agrega CSRF a operaciones del navegador contra Marea y el receptor M3.
+const _m4Fetch = window.fetch.bind(window);
+window.fetch = function(input, init={}) {
+  const u = new URL(typeof input === 'string' ? input : input.url, location.href);
+  const metodo = String(init.method || (typeof input !== 'string' ? input.method : 'GET') || 'GET').toUpperCase();
+  const receptor = u.hostname === location.hostname && u.port === '8102';
+  if ((u.origin === location.origin || receptor) && !['GET','HEAD','OPTIONS'].includes(metodo)) {
+    const h = new Headers(init.headers || (typeof input !== 'string' ? input.headers : undefined));
+    h.set('X-CSRF-Token', window.__M4_CSRF || '');
+    init = {...init, headers:h, credentials:'include'};
+  } else if (receptor) init = {...init, credentials:'include'};
+  return _m4Fetch(input, init);
+};
+
 const $ = s => document.querySelector(s);
 /* Redibuja un bloque que se refresca solo (sondeo) sin perder la posición de las barras de
    desplazamiento: si el HTML no cambió no toca nada; si cambió, guarda y restaura el scroll
@@ -2184,5 +2217,14 @@ function enlazarAjustes() {
 Promise.all([cargarCasos().catch(e => { st.casos = []; console.error(e); }), cargarPlataforma()]).finally(renderizar);
 setInterval(() => { if (!sondeo) cargarPlataforma(); }, 5000);   // contador de workers en la barra lateral
 </script>
+
+<div id="m4-identity" style="position:fixed;bottom:10px;right:12px;z-index:5000;background:white;border:1px solid #d6eee6;border-radius:9px;padding:8px 11px;box-shadow:0 2px 12px #1232;font:12px system-ui,sans-serif">
+<span id="m4-role-text"></span><button type="button" id="m4-salir" style="margin-left:8px;border:0;padding:5px 9px;background:#236b60;color:white;border-radius:6px;cursor:pointer">Cerrar sesión</button></div>
+<script>document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('m4-role-text').textContent='Rol: '+(window.__M4_ROLE||'');
+  document.getElementById('m4-salir').addEventListener('click',async()=>{
+    await fetch('/api/auth/logout',{method:'POST'});location.replace('/login');
+  });
+});</script>
 </body>
 </html>
