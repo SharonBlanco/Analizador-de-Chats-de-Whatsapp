@@ -758,9 +758,12 @@ def importar(*args, **kwargs):
         )
 
     try:
-        return _m4_importar_cifrado(
+        caso = _m4_importar_cifrado(
             args[0], args[1], **opciones
         )
+        from importar import _registrar_custodia_m4
+        _registrar_custodia_m4(caso, Path(args[1]))
+        return caso
     except _M4ErrorBoveda as error:
         raise ErrorImportacion(str(error)) from error
 
