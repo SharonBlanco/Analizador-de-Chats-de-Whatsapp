@@ -15,6 +15,7 @@ Escucha solo en 127.0.0.1: los chats no salen de esta computadora.
 from __future__ import annotations
 
 import argparse
+import ssl  # M4 HTTPS
 from http.cookies import SimpleCookie
 import hmac
 import hashlib
@@ -251,8 +252,8 @@ class Manejador(BaseHTTPRequestHandler):
 
     def _login(self):
         if self.headers.get('Origin') not in (None,
-            f'http://localhost:{self.server.server_port}',
-            f'http://127.0.0.1:{self.server.server_port}'):
+            f'https://localhost:{self.server.server_port}',
+            f'https://127.0.0.1:{self.server.server_port}'):
             return self._error('Origen no permitido', 403)
         if self.headers.get_content_type() != 'application/json':
             return self._error('Contenido invalido', 415)
@@ -674,6 +675,15 @@ class ManejadorWorkers(Manejador):
     do_DELETE = do_POST
 
 
+def _m4_tls(servidor, certificado, clave):
+    """Solo TLS moderno; no cae a HTTP si el certificado es incorrecto."""
+    contexto = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    contexto.minimum_version = ssl.TLSVersion.TLSv1_2
+    contexto.load_cert_chain(certfile=str(certificado), keyfile=str(clave))
+    servidor.socket = contexto.wrap_socket(servidor.socket, server_side=True)
+    return servidor
+
+
 def main():
     global DATASET, ORG, PLATAFORMA, CUENTAS_M4
     ap = argparse.ArgumentParser(description="Interfaz web local del importador de WhatsApp")
@@ -686,7 +696,11 @@ def main():
                     help="interfaz del puerto de workers (0.0.0.0 = accesible desde la red)")
     ap.add_argument("--puerto-receptor", type=int, default=8102,
                     help="receptor asíncrono de archivos con contrapresión (M3), solo en 127.0.0.1")
+    ap.add_argument("--cert-m4", type=Path, default=AQUI.parent / "distribuido" / "certs" / "server.crt")
+    ap.add_argument("--key-m4", type=Path, default=AQUI.parent / "distribuido" / "certs" / "server.key")
     a = ap.parse_args()
+    if not a.cert_m4.is_file() or not a.key_m4.is_file():
+        ap.error("M4 requiere certificado y clave TLS existentes")
     DATASET = a.salida.resolve()
     DATASET.mkdir(parents=True, exist_ok=True)
     ORG = Organizacion(DATASET)
@@ -694,9 +708,10 @@ def main():
     if not CUENTAS_M4._leer()['usuarios']:
         raise SystemExit('[M4] Crea primero una cuenta de administrador con mensajeria/usuarios.py')
     servidor = ThreadingHTTPServer(("127.0.0.1", a.puerto), Manejador)
-    print(f"Importador de WhatsApp en http://localhost:{a.puerto}")
+    _m4_tls(servidor, a.cert_m4, a.key_m4)
+    print(f"Importador de WhatsApp en https://localhost:{a.puerto}")
     print(f"Casos en {DATASET}   (Ctrl+C para detener)")
-    origenes = (f"http://localhost:{a.puerto}", f"http://127.0.0.1:{a.puerto}")
+    origenes = (f"https://localhost:{a.puerto}", f"https://127.0.0.1:{a.puerto}")
     def autorizar_m3(cabeceras, metodo, ruta):
         if metodo == 'OPTIONS':
             return 204
@@ -731,6 +746,7 @@ def main():
         if token:
             ManejadorWorkers.TOKEN = token
             srv_workers = ThreadingHTTPServer((a.host_workers, a.puerto_workers), ManejadorWorkers)
+            _m4_tls(srv_workers, a.cert_m4, a.key_m4)
             threading.Thread(target=srv_workers.serve_forever, daemon=True).start()
             print(f"[plataforma] adjuntos para workers en {a.host_workers}:{a.puerto_workers} (con token)")
         else:

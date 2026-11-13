@@ -913,8 +913,9 @@ async function ejecutarImportacion(subir, opts, descripcion) {
   }
 }
 /* M3: receptor asíncrono (puerto 8102) con cola acotada. Si no responde, se usan las rutas de siempre. */
-const RECEPTOR = `${location.protocol}//${location.hostname}:8102`;
+const RECEPTOR = location.protocol === "https:" ? null : `${location.protocol}//${location.hostname}:8102`;
 async function receptorDisponible() {
+  if (!RECEPTOR) return false;
   try { return (await fetch(`${RECEPTOR}/estado`, {signal: AbortSignal.timeout(1500)})).ok; } catch { return false; }
 }
 /** POST que respeta la contrapresión: con 503 espera lo que indica Retry-After y reintenta. */

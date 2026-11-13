@@ -29,6 +29,7 @@ Configuración (variables de entorno o distribuido/config.env):
 from __future__ import annotations
 
 import hashlib
+import ssl  # M4 HTTPS
 import json
 import os
 import platform
@@ -70,7 +71,7 @@ VERSION = 2
 WORKER_ID = config("WORKER_ID", f"worker-{socket.gethostname()}")
 MIS_POOLS = [p.strip() for p in config("WORKER_POOLS", ",".join(POOLS)).split(",") if p.strip()]
 CONCURRENCIA = max(1, int(config("WORKER_CONCURRENCIA", "1")))
-COORDINADOR_URL = config("COORDINADOR_URL", "http://localhost:8101").rstrip("/")
+COORDINADOR_URL = config("COORDINADOR_URL", "https://localhost:8101").rstrip("/")
 TOKEN = config("WORKER_TOKEN")
 DIR_TRABAJO = Path(config("WORKER_DIR", tempfile.gettempdir())) / f"wa-{WORKER_ID}"
 # Solo para demostraciones en vivo: segundos extra por sub-tarea para que se vea el reparto
@@ -190,10 +191,20 @@ class ErrorBloque(Exception):
     pass
 
 
+def _contexto_https_m4():
+    contexto = ssl.create_default_context()
+    ruta_ca = config("COORDINADOR_CA_FILE", str(Path(__file__).resolve().parents[1] / "certs" / "ca.crt"))
+    if ruta_ca and Path(ruta_ca).is_file():
+        contexto.load_verify_locations(cafile=str(ruta_ca))
+    return contexto
+
+
 def _conexion(url_base: str):
     u = urlsplit(url_base)
     clase = http.client.HTTPSConnection if u.scheme == "https" else http.client.HTTPConnection
-    return clase(u.hostname, u.port, timeout=30), u.path.rstrip("/")
+    conexion = (clase(u.hostname, u.port, timeout=30, context=_contexto_https_m4())
+                if u.scheme == "https" else clase(u.hostname, u.port, timeout=30))
+    return conexion, u.path.rstrip("/")
 
 
 def _pedir(con, ruta: str, cabeceras: dict) -> tuple[int, bytes]:
@@ -282,7 +293,7 @@ def descargar_completo(url: str, sub: dict, destino: Path) -> tuple[str, int]:
     h, total = hashlib.sha256(), 0
     try:
         pedido = urllib.request.Request(url, headers={"X-Token": TOKEN})
-        with urllib.request.urlopen(pedido, timeout=30) as r, open(destino, "wb") as f:
+        with urllib.request.urlopen(pedido, timeout=30, context=_contexto_https_m4() if url.startswith("https://") else None) as r, open(destino, "wb") as f:
             while bloque := r.read(1024 * 1024):
                 revisar_cancelacion(sub)          # cancelación real: corta la descarga
                 h.update(bloque)
