@@ -39,6 +39,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from almacen import Almacen  # noqa: E402  (M3: almacenamiento por contenido con deduplicación)
+from cifrado import clave_nueva, leer_clave  # noqa: E402
+from custodia import registrar as registrar_custodia  # noqa: E402
 from whatsapp_formato import es_chat_whatsapp, parsear_archivo  # noqa: E402
 
 MAX_ZIP_BYTES = 8 * 2 ** 30          # tope de descompresión (protege contra zip bombs)
@@ -114,6 +116,21 @@ def confirmar_declaracion(fuente: str, declaro: bool, interactivo: bool = False)
     return {"texto": TEXTO_DECLARACION, "declarado_por": getpass.getuser(),
             "fecha": datetime.now().isoformat(timespec="seconds")}
 
+
+
+def _registrar_custodia_m4(caso: Path, dataset: Path) -> None:
+    """Registra la importación, sin alterar las pruebas ni los casos históricos."""
+    seguridad = dataset / ".seguridad"
+    ruta_clave = seguridad / "custodia.key"
+    if not ruta_clave.exists():
+        try:
+            clave_nueva(ruta_clave)
+        except FileExistsError:
+            pass  # Otro proceso inicializó la clave primero.
+    clave = leer_clave(ruta_clave)
+    registrar_custodia(seguridad / "custodia.jsonl", clave,
+                     accion="importacion", actor="proceso-importador",
+                     caso=caso.name, archivo=caso / "metadata.json")
 
 def importar(entrada: Path, salida: Path, fuente: str, declaro: bool,
              nombre: str | None = None, prioridad: int = 5, sobrescribir: bool = False,
@@ -219,6 +236,7 @@ def importar(entrada: Path, salida: Path, fuente: str, declaro: bool,
                       "use contactos con nombre ficticio para no exponer números reales.")
     meta["avisos"] = avisos
     (caso / "metadata.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+    _registrar_custodia_m4(caso, salida)
 
     print(f"[✓] {titulo} → {caso}")
     print(f"    {len(mensajes)} mensajes de {len(autores)} participantes "
