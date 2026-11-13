@@ -1,18 +1,25 @@
-# RabbitMQ para el procesamiento en paralelo (corre en la PC del coordinador).
-# Las credenciales salen de distribuido/config.env (no se escriben aquí):
-#   cd distribuido && docker compose --env-file config.env up -d
+
 services:
   rabbitmq:
     image: rabbitmq:3.13-management
     container_name: wa-rabbitmq
+
     ports:
-      - "5672:5672"      # AMQP: coordinador y workers
-      - "15672:15672"    # panel web de RabbitMQ
+
+      - "127.0.0.1:5671:5671"
+      - "127.0.0.1:15672:15672"
+
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBIT_USER:?Defina RABBIT_USER en config.env}
       RABBITMQ_DEFAULT_PASS: ${RABBIT_PASS:?Defina RABBIT_PASS en config.env}
+
     volumes:
       - wa_rabbitmq:/var/lib/rabbitmq
+      - ./certs/ca.crt:/etc/rabbitmq/certs/ca.crt:ro
+      - ./certs/server.crt:/etc/rabbitmq/certs/server.crt:ro
+      - ./certs/server.key:/etc/rabbitmq/certs/server.key:ro
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+
     restart: unless-stopped
 
 volumes:

@@ -15,6 +15,9 @@ Escucha solo en 127.0.0.1: los chats no salen de esta computadora.
 from __future__ import annotations
 
 import argparse
+import ssl  # M4 HTTPS
+from http.cookies import SimpleCookie
+import hmac
 import hashlib
 import hmac
 import json
@@ -32,8 +35,15 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 AQUI = Path(__file__).resolve().parent
 sys.path.insert(0, str(AQUI))
+from sesiones import Sesiones
+from usuarios import Usuarios, autorizado
 from importar import ErrorImportacion, importar  # noqa: E402
 from whatsapp_formato import parsear_archivo  # noqa: E402
+# M4_ADAPTADOR_BOVEDA_V1
+from boveda import es_cifrado, mensajes_cifrados, archivo_descifrado, ErrorBoveda  # noqa: E402
+from cifrado import leer_clave, ErrorCifrado  # noqa: E402
+from contextlib import contextmanager
+
 from estadisticas import calcular as calcular_estadisticas  # noqa: E402
 from almacen import Almacen  # noqa: E402  (M3)
 from receptor import Receptor  # noqa: E402  (M3)
@@ -64,7 +74,9 @@ mimetypes.add_type("image/webp", ".webp")
 
 DATASET: Path = Path("dataset_whatsapp")
 ORG: Organizacion = Organizacion(DATASET)
-PLATAFORMA = None          # coordinador.Plataforma, se crea en main()
+PLATAFORMA = None
+SESIONES_M4 = Sesiones()
+CUENTAS_M4 = None          # coordinador.Plataforma, se crea en main()
 
 # Caché de chats parseados: {caso: (mtime_ns de chat.txt, mensajes)}.
 # El panorama general recorre todos los chats; sin caché se releería cada .txt.
@@ -73,6 +85,9 @@ _cache_lock = threading.Lock()
 
 
 def mensajes_de(carpeta: Path) -> list:
+    if es_cifrado(carpeta):
+        # No almacenar mensajes descifrados en el cache global.
+        return mensajes_cifrados(carpeta, DATASET)
     chat = carpeta / "chat.txt"
     marca = chat.stat().st_mtime_ns
     with _cache_lock:
@@ -91,6 +106,32 @@ def cargar_caso(caso: str) -> tuple[list, dict]:
     if not dentro(DATASET, carpeta) or not (carpeta / "metadata.json").is_file():
         raise ErrorTrabajo(f"El caso {caso} no existe")
     return mensajes_de(carpeta), json.loads((carpeta / "metadata.json").read_text(encoding="utf-8"))
+
+
+
+
+@contextmanager
+def _archivo_evidencia(carpeta: Path, nombre: str):
+    if nombre in ("chat.txt", "metadata.json") or Path(nombre).name != nombre:
+        raise FileNotFoundError("Evidencia no permitida")
+    meta = json.loads((carpeta / "metadata.json").read_text(encoding="utf-8"))
+    evidencia = meta.get("files", {}).get(nombre)
+    if not evidencia:
+        raise FileNotFoundError("Archivo no registrado")
+    if es_cifrado(carpeta):
+        clave = leer_clave(DATASET / ".seguridad" / "almacen-aes256.key")
+        with archivo_descifrado(carpeta, nombre, clave) as temporal:
+            # Verificar que el texto recuperado corresponda al hash de importacion.
+            with open(temporal, "rb") as f:
+                digest = hashlib.file_digest(f, "sha256").hexdigest()
+            if not hmac.compare_digest(digest, evidencia.get("sha256", "")):
+                raise ErrorBoveda("La huella SHA-256 no coincide")
+            yield temporal
+    else:
+        archivo = carpeta / nombre
+        if not dentro(carpeta, archivo) or not archivo.is_file():
+            raise FileNotFoundError("Archivo no encontrado")
+        yield archivo
 
 
 def estado_plataforma() -> dict:
@@ -125,9 +166,15 @@ def resumen_caso(carpeta: Path, asignaciones: dict | None = None) -> dict | None
     if asignaciones is None:
         asignaciones = ORG.estado()["asignaciones"]
     # Peso del chat: el .txt más sus adjuntos (lo que ocupa en disco, sin metadata.json)
-    bytes_chat = (carpeta / "chat.txt").stat().st_size
-    bytes_adjuntos = sum(f.stat().st_size for f in carpeta.iterdir()
-                         if f.is_file() and f.name not in ("chat.txt", "metadata.json"))
+    if es_cifrado(carpeta):
+        archivos_meta = m.get("files", {})
+        bytes_chat = (carpeta / archivos_meta["chat.txt"]["archivo_cifrado"]).stat().st_size
+        bytes_adjuntos = sum((carpeta / dato["archivo_cifrado"]).stat().st_size
+                             for nombre, dato in archivos_meta.items() if nombre != "chat.txt")
+    else:
+        bytes_chat = (carpeta / "chat.txt").stat().st_size
+        bytes_adjuntos = sum(f.stat().st_size for f in carpeta.iterdir()
+                             if f.is_file() and f.name not in ("chat.txt", "metadata.json"))
     return {"caso": carpeta.name, "chat": m.get("chat"), "fuente": m.get("fuente"),
             "bytes": bytes_chat + bytes_adjuntos, "bytes_chat": bytes_chat, "bytes_adjuntos": bytes_adjuntos,
             "mensajes": m.get("total_mensajes"), "participantes": len(m.get("participantes", [])),
@@ -206,11 +253,115 @@ class Manejador(BaseHTTPRequestHandler):
         carpeta = DATASET / nombre
         return carpeta if dentro(DATASET, carpeta) and (carpeta / "metadata.json").is_file() else None
 
+    # --------------------------------------------- M4: autenticacion y RBAC
+    def _cookie_token(self):
+        try:
+            cookie = SimpleCookie()
+            cookie.load(self.headers.get('Cookie', ''))
+            return cookie['marea_sid'].value if 'marea_sid' in cookie else None
+        except Exception:
+            return None
+
+    def _sesion(self):
+        return SESIONES_M4.obtener(self._cookie_token())
+
+    def _auth_post(self, partes):
+        """Permisos por endpoint; las rutas no clasificadas no se ejecutan."""
+        if partes in (['api', 'subir'], ['api', 'importar'], ['api', 'pegar'],
+                      ['api', 'telefono', 'importar'], ['api', 'carpetas'],
+                      ['api', 'mover']):
+            return 'importar'
+        if len(partes) == 4 and partes[:2] == ['api', 'casos'] and partes[3] == 'paralelo':
+            return 'analizar'
+        if partes == ['api', 'plataforma', 'reiniciar']:
+            return 'reiniciar'
+        if partes == ['api', 'trabajos', 'cancelar_todos']:
+            return 'cancelar'
+        if partes == ['api', 'trabajos', 'reanudar_todos']:
+            return 'reanudar'
+        if len(partes) == 4 and partes[:2] == ['api', 'trabajos']:
+            return {'cancelar':'cancelar', 'reanudar':'reanudar'}.get(partes[3])
+        if len(partes) == 4 and partes[:2] == ['api', 'carpetas'] and partes[3] == 'renombrar':
+            return 'configurar'
+        return None
+
+    def _cookie_segura(self, token):
+        # Secure solo funciona sobre HTTPS; la prueba local utiliza HTTP en loopback.
+        seguro = '; Secure' if isinstance(self.connection, __import__('ssl').SSLSocket) else ''
+        return f'marea_sid={token}; HttpOnly; SameSite=Strict; Path=/{seguro}'
+
+    def _login(self):
+        if self.headers.get('Origin') not in (None,
+            f'https://localhost:{self.server.server_port}',
+            f'https://127.0.0.1:{self.server.server_port}'):
+            return self._error('Origen no permitido', 403)
+        if self.headers.get_content_type() != 'application/json':
+            return self._error('Contenido invalido', 415)
+        try:
+            datos = self._leer_json()
+            nombre, clave = str(datos.get('usuario','')), str(datos.get('contrasena',''))
+            if len(nombre)>64 or len(clave)>1024:
+                return self._error('Credenciales invalidas', 401)
+            rol = CUENTAS_M4.autenticar(nombre, clave)
+        except (ValueError, TypeError, UnicodeError):
+            return self._error('Credenciales invalidas', 401)
+        if not rol:
+            return self._error('Credenciales invalidas', 401)
+        token = SESIONES_M4.crear(nombre, rol)
+        contenido = json.dumps({'usuario':nombre,'rol':rol},ensure_ascii=False).encode()
+        self.send_response(200)
+        self.send_header('Content-Type','application/json; charset=utf-8')
+        self.send_header('Set-Cookie',self._cookie_segura(token))
+        self.send_header('Cache-Control','no-store')
+        self.send_header('Content-Length',str(len(contenido)))
+        self.end_headers()
+        self.wfile.write(contenido)
+
+    def _cerrar_sesion(self):
+        token = self._cookie_token()
+        sesion = SESIONES_M4.obtener(token)
+        if not sesion:
+            return self._error('No autenticado',401)
+        if not SESIONES_M4.verificar_csrf(token, self.headers.get('X-CSRF-Token','')):
+            return self._error('CSRF invalido',403)
+        SESIONES_M4.cerrar(token)
+        contenido = b'{"ok":true}'
+        self.send_response(200)
+        self.send_header('Content-Type','application/json')
+        self.send_header('Set-Cookie',self._cookie_segura('')+'; Max-Age=0')
+        self.send_header('Content-Length',str(len(contenido)))
+        self.end_headers()
+        self.wfile.write(contenido)
+
+    def _pagina_login(self):
+        pagina = (AQUI / 'web' / 'login.html').read_bytes()
+        self.send_response(200)
+        self.send_header('Content-Type','text/html; charset=utf-8')
+        self.send_header('Cache-Control','no-store')
+        self.send_header('Content-Length',str(len(pagina)))
+        self.end_headers()
+        self.wfile.write(pagina)
+
     # ---------------------------------------------------------------- GET
     def do_GET(self):
         partes, qs = self._ruta()
+        if partes == ['login']:
+            return self._pagina_login()
+        sesion = self._sesion()
+        if not sesion:
+            if not partes:
+                return self._pagina_login()
+            return self._error('No autenticado', 401)
+        if partes == ['api', 'auth', 'me']:
+            return self._json({'usuario':sesion['usuario'], 'rol':sesion['rol'], 'csrf':sesion['csrf']})
+        if not autorizado(sesion['rol'],'consultar'):
+            return self._error('403 prohibido', 403)
         if not partes:
             cuerpo = INDEX.read_bytes()
+            rol = sesion['rol'].encode('ascii')
+            token_csrf = json.dumps(sesion['csrf']).encode('ascii')
+            inyeccion = b'<script>window.__M4_ROLE=' + json.dumps(sesion['rol']).encode() + b';window.__M4_CSRF=' + token_csrf + b';</script>'
+            cuerpo = cuerpo.replace(b'</head>',inyeccion+b'</head>',1)
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(cuerpo)))
@@ -282,10 +433,15 @@ class Manejador(BaseHTTPRequestHandler):
                 self._error(str(e), 404)
         elif len(partes) == 3 and partes[0] == "media":
             carpeta = self._caso(partes[1])
-            archivo = carpeta / partes[2] if carpeta else None
-            if not archivo or not dentro(carpeta, archivo) or not archivo.is_file():
+            if not carpeta:
                 return self._error("Archivo no encontrado", 404)
-            self._enviar_archivo(archivo)
+            try:
+                with _archivo_evidencia(carpeta, partes[2]) as archivo:
+                    self._enviar_archivo(archivo)
+            except FileNotFoundError:
+                self._error("Archivo no encontrado", 404)
+            except (ErrorBoveda, ErrorCifrado, OSError, ValueError) as e:
+                self._error(f"No se pudo verificar la evidencia: {e}", 422)
         else:
             self._error("No existe", 404)
 
@@ -323,6 +479,20 @@ class Manejador(BaseHTTPRequestHandler):
     # ---------------------------------------------------------------- POST
     def do_POST(self):
         partes, qs = self._ruta()
+        if partes == ['api', 'auth', 'login']:
+            return self._login()
+        if partes == ['api', 'auth', 'logout']:
+            return self._cerrar_sesion()
+        sesion = self._sesion()
+        if not sesion:
+            return self._error('No autenticado',401)
+        accion = self._auth_post(partes)
+        if accion is None:
+            return self._error('No existe',404)
+        if not autorizado(sesion['rol'],accion):
+            return self._error('403 prohibido',403)
+        if not SESIONES_M4.verificar_csrf(self._cookie_token(), self.headers.get('X-CSRF-Token','')):
+            return self._error('CSRF invalido',403)
         try:
             if partes == ["api", "subir"]:
                 return self._subir(qs)
@@ -552,17 +722,21 @@ class ManejadorWorkers(Manejador):
         if not carpeta:
             return self._error("Archivo no encontrado", 404)
         meta = json.loads((carpeta / "metadata.json").read_text(encoding="utf-8"))
-        archivo = carpeta / partes[2]
-        if partes[2] in ("chat.txt", "metadata.json") or partes[2] not in meta.get("files", {}) \
-                or not dentro(carpeta, archivo) or not archivo.is_file():
+        if partes[2] in ("chat.txt", "metadata.json") or partes[2] not in meta.get("files", {}):
             return self._error("Archivo no encontrado", 404)
-        if partes[0] == "manifiesto":
-            try:
-                tam = min(64 * 2**20, max(16 * 2**10, int((qs.get("bloque") or [2**20])[0])))
-            except ValueError:
-                return self._error("Tamaño de bloque inválido")
-            return self._json(self._manifiesto(archivo, meta["files"][partes[2]].get("sha256") or "", tam))
-        self._enviar_archivo(archivo)
+        try:
+            with _archivo_evidencia(carpeta, partes[2]) as archivo:
+                if partes[0] == "manifiesto":
+                    try:
+                        tam = min(64 * 2**20, max(16 * 2**10, int((qs.get("bloque") or [2**20])[0])))
+                    except ValueError:
+                        return self._error("Tamaño de bloque inválido")
+                    return self._json(self._manifiesto(archivo, meta["files"][partes[2]].get("sha256") or "", tam))
+                self._enviar_archivo(archivo)
+        except FileNotFoundError:
+            self._error("Archivo no encontrado", 404)
+        except (ErrorBoveda, ErrorCifrado, OSError, ValueError) as e:
+            self._error(f"No se pudo verificar la evidencia: {e}", 422)
 
     def do_POST(self):
         self._error("No existe", 404)
@@ -570,8 +744,52 @@ class ManejadorWorkers(Manejador):
     do_DELETE = do_POST
 
 
+def _m4_tls(servidor, certificado, clave):
+    """Solo TLS moderno; no cae a HTTP si el certificado es incorrecto."""
+    contexto = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    contexto.minimum_version = ssl.TLSVersion.TLSv1_2
+    contexto.load_cert_chain(certfile=str(certificado), keyfile=str(clave))
+    servidor.socket = contexto.wrap_socket(servidor.socket, server_side=True)
+    return servidor
+
+
+
+# M4: importaciones cifradas con activacion controlada
+import os as _m4_os
+from boveda import importar_cifrado as _m4_importar_cifrado, ErrorBoveda as _M4ErrorBoveda
+
+_m4_importar_original = importar
+
+def importar(*args, **kwargs):
+    """M4: cifra nuevas importaciones solo con WA_M4_CIFRAR_NUEVOS=1."""
+    if _m4_os.environ.get("WA_M4_CIFRAR_NUEVOS", "0") != "1":
+        return _m4_importar_original(*args, **kwargs)
+
+    if len(args) != 2:
+        raise ErrorImportacion("M4 requiere entrada y dataset explicitos")
+
+    opciones = kwargs.copy()
+    sobrescribir = opciones.pop("sobrescribir", False)
+    opciones.pop("interactivo", None)
+
+    if sobrescribir:
+        raise ErrorImportacion(
+            "M4 no permite sobrescribir casos cifrados. Use otro nombre."
+        )
+
+    try:
+        caso = _m4_importar_cifrado(
+            args[0], args[1], **opciones
+        )
+        from importar import _registrar_custodia_m4
+        _registrar_custodia_m4(caso, Path(args[1]))
+        return caso
+    except _M4ErrorBoveda as error:
+        raise ErrorImportacion(str(error)) from error
+
+
 def main():
-    global DATASET, ORG, PLATAFORMA
+    global DATASET, ORG, PLATAFORMA, CUENTAS_M4
     ap = argparse.ArgumentParser(description="Interfaz web local del importador de WhatsApp")
     ap.add_argument("--puerto", type=int, default=8100)
     ap.add_argument("--salida", type=Path, default=AQUI.parent / "dataset_whatsapp",
@@ -582,15 +800,43 @@ def main():
                     help="interfaz del puerto de workers (0.0.0.0 = accesible desde la red)")
     ap.add_argument("--puerto-receptor", type=int, default=8102,
                     help="receptor asíncrono de archivos con contrapresión (M3), solo en 127.0.0.1")
+    ap.add_argument("--cert-m4", type=Path, default=AQUI.parent / "distribuido" / "certs" / "server.crt")
+    ap.add_argument("--key-m4", type=Path, default=AQUI.parent / "distribuido" / "certs" / "server.key")
     a = ap.parse_args()
+    if not a.cert_m4.is_file() or not a.key_m4.is_file():
+        ap.error("M4 requiere certificado y clave TLS existentes")
     DATASET = a.salida.resolve()
     DATASET.mkdir(parents=True, exist_ok=True)
     ORG = Organizacion(DATASET)
+    CUENTAS_M4 = Usuarios(DATASET / '.seguridad' / 'usuarios.json')
+    if not CUENTAS_M4._leer()['usuarios']:
+        raise SystemExit('[M4] Crea primero una cuenta de administrador con mensajeria/usuarios.py')
     servidor = ThreadingHTTPServer(("127.0.0.1", a.puerto), Manejador)
-    print(f"Importador de WhatsApp en http://localhost:{a.puerto}")
+    _m4_tls(servidor, a.cert_m4, a.key_m4)
+    print(f"Importador de WhatsApp en https://localhost:{a.puerto}")
     print(f"Casos en {DATASET}   (Ctrl+C para detener)")
-    origenes = (f"http://localhost:{a.puerto}", f"http://127.0.0.1:{a.puerto}")
-    receptor = Receptor(SUBIDAS, importar_lote, origenes=origenes)
+    origenes = (f"https://localhost:{a.puerto}", f"https://127.0.0.1:{a.puerto}")
+    def autorizar_m3(cabeceras, metodo, ruta):
+        if metodo == 'OPTIONS':
+            return 204
+        cookie = SimpleCookie()
+        try:
+            cookie.load(cabeceras.get('cookie',''))
+            token = cookie['marea_sid'].value if 'marea_sid' in cookie else ''
+        except Exception:
+            token = ''
+        sesion = SESIONES_M4.obtener(token)
+        if not sesion:
+            return 401
+        if metodo == 'GET':
+            return 200 if autorizado(sesion['rol'],'consultar') else 403
+        if not autorizado(sesion['rol'],'importar'):
+            return 403
+        if not SESIONES_M4.verificar_csrf(token,cabeceras.get('x-csrf-token','')):
+            return 403
+        return 200
+
+    receptor = Receptor(SUBIDAS, importar_lote, origenes=origenes, autorizacion=autorizar_m3)
     receptor.iniciar_en_hilo("127.0.0.1", a.puerto_receptor)
     print(f"[M3] receptor asíncrono en 127.0.0.1:{a.puerto_receptor} · contrapresión «{receptor.politica}», "
           f"cola de {receptor.cola_max}, {receptor.n_importadores} importadores")
@@ -604,6 +850,7 @@ def main():
         if token:
             ManejadorWorkers.TOKEN = token
             srv_workers = ThreadingHTTPServer((a.host_workers, a.puerto_workers), ManejadorWorkers)
+            _m4_tls(srv_workers, a.cert_m4, a.key_m4)
             threading.Thread(target=srv_workers.serve_forever, daemon=True).start()
             print(f"[plataforma] adjuntos para workers en {a.host_workers}:{a.puerto_workers} (con token)")
         else:

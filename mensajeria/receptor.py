@@ -46,7 +46,7 @@ class Receptor:
     def __init__(self, carpeta_subidas: Path, importar: Callable[[dict], dict], *, politica: str | None = None,
                  cola_max: int | None = None, importadores: int | None = None, subidas_max: int | None = None,
                  origenes: tuple[str, ...] = ("http://localhost:8100", "http://127.0.0.1:8100"),
-                 csv_metricas: Path | None = None):
+                 csv_metricas: Path | None = None, autorizacion=None):
         self.subidas = Path(carpeta_subidas)
         self.importar = importar                       # función bloqueante: corre en un hilo auxiliar
         self.politica = politica or _config("WA_CONTRAPRESION", "rechazar")
@@ -54,6 +54,7 @@ class Receptor:
         self.n_importadores = int(importadores or _config("WA_IMPORTADORES", "2"))
         self.subidas_max = int(subidas_max or _config("WA_SUBIDAS_MAX", "8"))
         self.origenes = origenes
+        self.autorizacion = autorizacion
         self.csv = csv_metricas
         self.metricas = {"aceptadas": 0, "rechazadas": 0, "subidas_frenadas": 0, "importadas": 0, "errores": 0,
                          "en_curso": 0, "subidas_en_curso": 0, "profundidad_max": 0}
@@ -139,6 +140,14 @@ class Receptor:
         origen = cab.get("origin", "")
         u = urlparse(ruta)
         try:
+            if self.autorizacion is not None:
+                # CORS y autorizacion tambien en el puerto M3 (8102).
+                if origen and origen not in self.origenes:
+                    return await self._responder(escritor, 403, {'error':'Origen prohibido'}, origen)
+                estado_auth = self.autorizacion(cab, metodo, u.path)
+                if estado_auth not in (200,204):
+                    return await self._responder(escritor, estado_auth,
+                                                  {'error':'No autenticado' if estado_auth==401 else '403 prohibido'}, origen)
             if metodo == "OPTIONS":
                 await self._responder(escritor, 204, None, origen)
             elif metodo == "GET" and u.path == "/estado":
@@ -163,12 +172,13 @@ class Receptor:
     async def _responder(self, escritor, estado: int, datos, origen: str, extra: dict | None = None):
         cuerpo = b"" if datos is None else json.dumps(datos, ensure_ascii=False).encode()
         razones = {200: "OK", 204: "No Content", 400: "Bad Request", 404: "Not Found", 413: "Payload Too Large",
-                   500: "Internal Server Error", 503: "Service Unavailable"}
+                   401: "Unauthorized", 403:"Forbidden", 500: "Internal Server Error", 503: "Service Unavailable"}
         cab = [f"HTTP/1.1 {estado} {razones.get(estado, '')}", "Connection: close", f"Content-Length: {len(cuerpo)}",
                "Content-Type: application/json; charset=utf-8"]
         if origen in self.origenes:              # la interfaz (puerto 8100) llama a este puerto (8102)
             cab += [f"Access-Control-Allow-Origin: {origen}", "Access-Control-Allow-Methods: GET, POST, OPTIONS",
-                    "Access-Control-Allow-Headers: Content-Type", "Access-Control-Expose-Headers: Retry-After"]
+                    "Access-Control-Allow-Headers: Content-Type, X-CSRF-Token", "Access-Control-Allow-Credentials: true",
+                    "Access-Control-Expose-Headers: Retry-After"]
         cab += [f"{k}: {v}" for k, v in (extra or {}).items()]
         escritor.write(("\r\n".join(cab) + "\r\n\r\n").encode() + cuerpo)
         await escritor.drain()                   # contrapresión de TCP: espera si el cliente lee lento

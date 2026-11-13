@@ -83,8 +83,18 @@ def parametros_rabbit() -> pika.ConnectionParameters:
         raise ConfiguracionIncompleta(
             "Faltan RABBIT_USER y RABBIT_PASS. Cópielos en distribuido/config.env "
             "(ver distribuido/config.env.ejemplo) o defínalos como variables de entorno.")
+    host = config("RABBIT_HOST", "localhost")
+    tls = config("RABBIT_TLS", "0") == "1"
+
+    opciones_tls = None
+    if tls:
+        ruta_ca = Path(config("RABBIT_CA_FILE", str(AQUI / "certs" / "ca.crt")))
+        contexto = ssl.create_default_context(cafile=str(ruta_ca))
+        opciones_tls = pika.SSLOptions(contexto, server_hostname=host)
+
     return pika.ConnectionParameters(
-        host=config("RABBIT_HOST", "localhost"), port=int(config("RABBIT_PORT", "5672")),
+        host=host, port=int(config("RABBIT_PORT", "5671" if tls else "5672")),
+        ssl_options=opciones_tls,
         credentials=pika.PlainCredentials(usuario, clave),
         heartbeat=30, blocked_connection_timeout=300, connection_attempts=1, socket_timeout=5)
 
