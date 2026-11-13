@@ -21,7 +21,7 @@
 ## Entradas
 
 ### 1. Importación de chats de WhatsApp
-- **Fecha · integrante:** semana 14 · Sharon Blanco
+- **Fecha · integrante:** semana 14 · Sharon Blanco y Britany
 - **Componente:** importación y parser (`mensajeria/importar.py`, `mensajeria/whatsapp_formato.py`)
 - **Propósito:** generar código y entender los formatos de exportación.
 - **Consulta resumida:** "Hacer un importador para los chats exportados de WhatsApp (Android e iOS) con sus adjuntos, a partir de este ejemplo de formato."
@@ -32,7 +32,7 @@
 - **Cómo se validó:** importando chats reales del equipo y los 40 casos generados, y revisando la cantidad de mensajes, participantes y adjuntos en la interfaz.
 
 ### 2. Interfaz web y dashboard
-- **Fecha · integrante:** semana 14 · Sharon Blanco
+- **Fecha · integrante:** semana 14 · Sharon Blanco y Britany
 - **Componente:** `mensajeria/web.py`, `mensajeria/web/index.html`
 - **Propósito:** generar código a partir de nuestro diseño.
 - **Consulta resumida:** "Rediseñar la interfaz con estilo SaaS en tonos verde agua, con estadísticas generales, búsqueda, carpetas y filtro por fechas." Después: "una pestaña de riesgos", "elegir qué chats procesar" y "eliminar chats".
@@ -42,7 +42,7 @@
 - **Cómo se validó:** usando la interfaz en el navegador y con `node --check` sobre el JavaScript.
 
 ### 3. Pipeline distribuido (reutilización del I Proyecto)
-- **Fecha · integrante:** semana 14 · Sharon Blanco
+- **Fecha · integrante:** semana 14 · Sharon Blanco y Britany
 - **Componente:** `distribuido/coordinador.py`, `distribuido/worker/worker.py`
 - **Propósito:** adaptar los workers y el flujo de tareas del I Proyecto.
 - **Consulta resumida:** "Reutilizar del proyecto anterior solo los workers conectados y el flujo de tareas, y agregar un botón para dividir un chat entre workers."

@@ -155,7 +155,8 @@ exportar_whatsapp.py   exportación automática desde un teléfono Android (uiau
 | [docs/bitacora_ia.md](docs/bitacora_ia.md) | Bitácora de uso de IA |
 
 ## Equipo
-- **Sharon Blanco**: importación, dashboard, procesamiento distribuido, detección, dataset y M1.
-- **Britany**: M2 (planificación) y M4 (seguridad).
+- **Sharon Blanco**: M1, M3 y M5.
+- **Britany**: M2 y M4.
+- El resto de la plataforma, las pruebas y el informe se hicieron en equipo.
 
-La matriz de responsabilidades completa va en `docs/responsabilidades.md`.
+Detalle en [docs/responsabilidades.md](docs/responsabilidades.md).
