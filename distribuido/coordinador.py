@@ -660,6 +660,12 @@ class Plataforma:
             for st in tr["subtareas"].values():
                 if st["estado"] not in FINALES_ST:
                     st["estado"], st["fin"] = "cancelled", time.time()
+                # M2: eliminar subtareas canceladas del planificador.
+                if tr.get("m2"):
+                    self.planificador.cancelar(st["id"])
+                    self.despachadas.discard(st["id"])
+                    self.reservas.pop(st["id"], None)
+
             self._guardar(tr)
         try:   # los workers descartan lo que tomen de este trabajo y abortan lo que estén haciendo
             self._publicar([("", {"cancelar": id_}, 10)], exchange=EXCHANGE_CONTROL)

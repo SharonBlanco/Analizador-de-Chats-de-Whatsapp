@@ -90,6 +90,21 @@ class TestIntegracionM2(unittest.TestCase):
         self.assertFalse(self.p._despachar())
         self.p._publicar.assert_not_called()
 
+    def test_cancelar_elimina_pendientes(self):
+        """Cancelar un trabajo elimina sus subtareas de M2."""
+        from unittest.mock import patch
+
+        self.assertEqual(self.p.planificador.pendientes(), 2)
+
+        with patch.object(self.p, "detalle", return_value={}):
+            self.p.cancelar("tr-001")
+
+        self.assertEqual(self.p.planificador.pendientes(), 0)
+        self.assertEqual(self.tr["estado"], "cancelled")
+
+        for st in self.tr["subtareas"].values():
+            self.assertEqual(st["estado"], "cancelled")
+
 
 if __name__ == "__main__":
     unittest.main()
