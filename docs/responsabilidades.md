@@ -27,7 +27,7 @@ El responsable principal de cada componente puede explicarlo, modificarlo en viv
 | Importación desde un teléfono Android por USB | Sharon Blanco | — | `mensajeria/telefono.py`, `exportar_whatsapp.py` | — |
 | Interfaz web y dashboard (panorama, riesgos, conversaciones, workers, alertas) | Sharon Blanco | — | `mensajeria/web.py`, `mensajeria/web/index.html` | — |
 | Pipeline distribuido: coordinador, workers y RabbitMQ (reutilizado del I Proyecto) | Sharon Blanco | — | `distribuido/coordinador.py`, `distribuido/worker/worker.py`, `distribuido/comun.py` | [docs/reutilizacion.md](reutilizacion.md) |
-| Detección de agresiones (texto, imagen y audio) y evaluación contra el ground truth | Sharon Blanco | — | `distribuido/worker/detectores.py` | [docs/mediciones/](mediciones/) |
+| Detección de agresiones (texto con Ollama, imagen y audio) y evaluación contra el ground truth | Sharon Blanco | — | `distribuido/worker/detectores.py`, `distribuido/worker/contexto_ollama.md`, `distribuido/comparar_detectores.py` | [docs/mediciones/](mediciones/) |
 | Dataset sintético y ground truth (B.3) | Sharon Blanco | — | `generador_dataset/` | [docs/dataset.md](dataset.md) |
 | Workers en la nube (Google Colab + CloudAMQP con TLS) | Sharon Blanco | — | `distribuido/worker_colab.ipynb`, `distribuido/comun.py` (`RABBIT_URL`) | — |
 | Pruebas de carga y tolerancia a fallos (B.6) | Sharon Blanco y Britany | — | `distribuido/m1/rafaga.py`, `distribuido/m3/rafaga_subidas.py` | Informe final |

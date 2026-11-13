@@ -13,11 +13,13 @@ Pasos para dejar el proyecto funcionando en otra computadora. Los comandos se es
 | **Python 3.12 o superior** | Todo el proyecto | `python3 --version` (en Windows, `python --version`) |
 | **Git** | Bajar el repositorio | `git --version` |
 | **FFmpeg** | Notas de voz del dataset y metadatos en los workers | `ffmpeg -version` |
+| **Ollama** | Clasificar el texto en los workers (modelo local `qwen2.5:3b`) | `ollama --version` y `ollama list` |
 | Docker (opcional) | Solo si RabbitMQ va a correr en **tu** computadora | `docker --version` |
 
 Para instalar lo que falte:
 - **Ubuntu/Debian:** `sudo apt install python3 python3-venv git ffmpeg`
 - **Windows:** `winget install Python.Python.3.12 Git.Git Gyan.FFmpeg` (después, cierra y abre la terminal)
+- **Ollama:** en Linux `curl -fsSL https://ollama.com/install.sh | sh`; en Windows, el instalador de https://ollama.com/download. Después, una vez: `ollama pull qwen2.5:3b` (1,9 GB). Con una GPU NVIDIA lo usa sola; sin GPU funciona, pero mucho más lento. Si un worker no tiene Ollama, usa el detector anterior automáticamente.
 
 ## 2. Bajar el proyecto
 

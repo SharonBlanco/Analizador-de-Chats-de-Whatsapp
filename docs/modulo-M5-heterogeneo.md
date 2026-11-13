@@ -56,6 +56,18 @@
 
 Datos: `docs/mediciones/m5/dispositivos.json` y `dispositivos.md`.
 
+### 4.3 Detector de texto con Ollama (semana 15)
+Desde la semana 15 el texto se clasifica con un modelo de lenguaje local (Ollama, qwen2.5:3b; ver `docs/mediciones/texto_detector.md`). Medido en la GPU de la laptop con `distribuido/comparar_detectores.py`:
+
+| Detector | Dispositivo | Latencia por mensaje | Memoria |
+|---|---|---|---|
+| Anterior (reglas + RoBERTuito) | GPU | ~26 ms | 688 MB de VRAM |
+| Ollama qwen2.5:3b (dos pasadas) | GPU | ~280 ms (chats) · ~620 ms (comentarios largos) | 2,2 GB de VRAM |
+| Combinado: RoBERTuito propone, Ollama revisa | GPU | ~40 ms | 688 MB + 2,2 GB de VRAM |
+| **Combinado ambos (en uso)** | GPU | ~310 ms (chats) · ~770 ms (comentarios largos) | 688 MB + 2,2 GB de VRAM |
+
+Un modelo de lenguaje **genera** la respuesta palabra por palabra: cada palabra necesita una pasada completa por la red, y ese paso es secuencial. Por eso es entre 10 y 25 veces más lento que RoBERTuito, que solo clasifica. En CPU (Colab sin GPU, Azure) es mucho más lento todavía, así que el texto pasó a depender de la GPU. No se midió Ollama en CPU con el mismo script, pero en las corridas se observó que los nodos sin GPU tardaban bastante más con cada bloque. Por eso el nodo de Azure (solo CPU) se configuró **sin el pool de texto** (`WORKER_POOLS=imagen,adjuntos,audio`): el texto lo toman los nodos con GPU y Azure procesa fotos, adjuntos y audios. Es la política de *routing* aplicada con los pools de cada nodo.
+
 ## 5. Interpretación y política de routing
 - **La aceleración depende de cuánto paralelismo tiene la tarea**, como predice la teoría:
   - **YOLO (11,3×)** es una red de convoluciones sobre una imagen entera: millones de operaciones independientes, justo lo que aprovechan los miles de núcleos de la GPU.
@@ -71,7 +83,7 @@ Datos: `docs/mediciones/m5/dispositivos.json` y `dispositivos.md`.
 |---|---|---|---|
 | **Fotos** (YOLO) | **GPU** | CPU solo si la cola de GPU es larga | Mayor aceleración (11,3×); en CPU, 0,45 s por foto |
 | **Audios** (Whisper) | **GPU** (*medium* int8) | CPU (*small* int8) | 6,7×, pero la CPU sigue siendo 6,9× más rápida que el tiempo real |
-| **Texto** (bloques de mensajes) | **CPU** | GPU si está libre | Menor aceleración (5,2×) y la CPU rinde bien; así la GPU queda para fotos y audios |
+| **Texto** (bloques de mensajes) | **GPU** (Ollama) | CPU solo con el detector anterior | Con Ollama (desde la semana 15) el texto es lo más lento de todo y depende de la GPU (sección 4.3). Con el detector anterior era al revés: CPU preferida (5,2×) |
 | **Otros adjuntos** (verificación y metadatos) | **CPU** | cualquiera | Es E/S y hashing, sin modelo |
 
 **Regla general:** cada sub-tarea va al nodo donde **terminaría antes**, estimando `(tareas en cola de ese nodo + 1) × latencia medida de ese tipo en ese dispositivo` con los valores de la tabla 4.1. Con nodos ociosos, esto manda cada tipo a su nodo preferido. Bajo carga, desvía el trabajo a la CPU solo cuando esperar la GPU tardaría más.

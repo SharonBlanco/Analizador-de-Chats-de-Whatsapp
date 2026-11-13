@@ -86,6 +86,18 @@ Datos: `docs/mediciones/m1/oom/` (`resumen.json`, `worker.log`, `memoria.png`) y
 
 ![Memoria del worker durante la ráfaga](mediciones/m1/rafaga/memoria.png)
 
+### 4.5 Detector de texto con Ollama (semana 15)
+Desde la semana 15 el texto se clasifica con un modelo de lenguaje local (Ollama, qwen2.5:3b; ver `docs/mediciones/texto_detector.md`). Las mediciones de 4.1–4.4 son del detector anterior (RoBERTuito), que sigue como alternativa en los nodos sin Ollama.
+
+| | Detector anterior (RoBERTuito dentro del worker) | Ollama (servidor aparte) |
+|---|---|---|
+| Dónde vive el modelo | En el proceso del worker | En otro proceso (`ollama serve`); el worker le manda los mensajes por HTTP a `localhost:11434` |
+| Memoria que el plan reserva en el worker | 477 MB fijos + 818 MB por sub-tarea de texto | Con el detector **combinado** (en uso), lo mismo que el anterior, porque RoBERTuito propone candidatos. Solo con `OLLAMA_CANDIDATOS=ollama` el plan reserva **0 MB** para el texto |
+| Memoria observada | 940 MB residentes en el worker | Servidor de Ollama: ~6,5 GB de RSS y 2,2 GB de VRAM (modelo 100 % en GPU, contexto de 4096 tokens), observado con `ps` y `ollama ps` durante el procesamiento |
+| Liberación | Al terminar el worker | El servidor descarga el modelo tras 3 min sin uso (`OLLAMA_MANTENER`, `keep_alive` de la API) |
+
+La memoria de Ollama no la limita el cgroup del worker, porque es otro proceso. En los nodos Docker (Azure), Ollama corre en la máquina y el worker en su contenedor con `--memory=4500m`, de forma que entre los dos caben en los 8 GB del nodo. El valor de RSS del servidor se observó con herramientas del sistema, no con `medir_modelos.py`.
+
 ## 5. Interpretación
 - **La huella real no es el tamaño del archivo del modelo.** RoBERTuito pesa 416 MB en disco, pero el proceso llega a 940 MB residentes, con 1281 MB de pico la primera vez. Medir era necesario: con el tamaño del archivo, el plan habría admitido cargas que terminan en OOM.
 - **La paginación por demanda se ve en los datos.** Al "cargar" el modelo de texto, el RSS sube solo 31 MB: safetensors mapea los pesos con `mmap`. Esas páginas entran a la RAM durante la 1.ª inferencia (+477 MB residentes). Por eso el plan separa la memoria **fija** del modelo de la memoria **de trabajo** por sub-tarea.

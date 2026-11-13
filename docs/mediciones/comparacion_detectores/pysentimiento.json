@@ -1,0 +1,467 @@
+{
+  "motor": "pysentimiento",
+  "modelo": "pysentimiento hate_speech + reglas",
+  "dispositivo": "cuda",
+  "desafio": {
+    "mensajes": 36,
+    "vp": 14,
+    "fp": 4,
+    "fn": 4,
+    "vn": 14,
+    "precision": 0.778,
+    "exhaustividad": 0.778,
+    "f1": 0.778,
+    "ms_por_mensaje": 59.7,
+    "errores": [
+      {
+        "texto": "tengo un kilo de coca para vender",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "te espero afuera y vas a ver",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "compa, ¿tenés mota para el finde?",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "ayer le pegué a mi ex hasta dejarla morada",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "qué mierda de día",
+        "esperado": 0,
+        "obtenido": [
+          "insulto"
+        ]
+      },
+      {
+        "texto": "puta, se me olvidó la llave",
+        "esperado": 0,
+        "obtenido": [
+          "insulto",
+          "agresion",
+          "odio"
+        ]
+      },
+      {
+        "texto": "hijueputa, ¡ganamos el partido!",
+        "esperado": 0,
+        "obtenido": [
+          "insulto"
+        ]
+      },
+      {
+        "texto": "te mato si no venís a la fiesta jajaja",
+        "esperado": 0,
+        "obtenido": [
+          "amenaza"
+        ]
+      }
+    ]
+  },
+  "sinteticos": {
+    "mensajes": 1917,
+    "vp": 24,
+    "fp": 2,
+    "fn": 8,
+    "vn": 1883,
+    "precision": 0.923,
+    "exhaustividad": 0.75,
+    "f1": 0.828,
+    "ms_por_mensaje": 26.6,
+    "errores": [
+      {
+        "texto": "mira que hay pocos youtubers que dan asco, pero eso no quieredecir que no haya ninguno. aca hay un caso.",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Anoche, un simpatizante de Trump asesinado a sangre fría por los terroristas de #Antifa y #BLM. No son más que bestias s",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Evidentemente me parecen q son muy guapos y me gustan los dos muchisimo pero la gente esta too much de la cabeza",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Por que tus putos títulos siempre tienen que ser doble sentido por eso EL DED habló de eso la última hezb",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Deja de mentir maldita sea no puedo entrar a Youtube sin ver videos relacionados contigo estoy arto de ti vete a la carc",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Eso no es posible su cabeza solo da para tres cosas 1 ni machismo ni feminismo igualdad, 2 insultar a todas la mujeres q",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "No me parece que tengas que reírte de algo el cual tu familia o cercanos puedan morir al estar en riesgo ERES MUY INMADU",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "¿Puede la gente dejar de estar loca? Totalmente necesario xD",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Que tipa tan setzi 😂",
+        "esperado": 0,
+        "obtenido": [
+          "agresion",
+          "odio"
+        ]
+      },
+      {
+        "texto": "Pringada necesito verte en Buenos Aires alguna vez!",
+        "esperado": 0,
+        "obtenido": [
+          "agresion",
+          "odio"
+        ]
+      }
+    ]
+  },
+  "offendes": {
+    "mensajes": 300,
+    "vp": 104,
+    "fp": 12,
+    "fn": 46,
+    "vn": 138,
+    "precision": 0.897,
+    "exhaustividad": 0.693,
+    "f1": 0.782,
+    "ms_por_mensaje": 26.1,
+    "errores": [
+      {
+        "texto": "Evidentemente me parecen q son muy guapos y me gustan los dos muchisimo pero la gente esta too much de la cabeza",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "5:59 le respondió a otra tipeja, a @rominapetricci_24  9:29 y antes dijo que quería sus zapatos cuando no tiene piernas ",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "JAJASJ te digo que es patetico, alguien que esta apoyando a un estafador, lo peor es que grefg perdio ya lo descubrieron",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Haaaa y juega bien por que juegas de la veeeeeeeergaaaaaaaaaaaaaaaaaa  de que te sirve un buen PC si juegas del carajo h",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Que asco y vergonzoso es que una cosa como esta sea una influyente para el mundo gay 🤮",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Das grima encima poniéndote de nombre \"Invitada a El Hormiguero\" para buscar famita. Pero se ve que es lo que se lleva h",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "sabes ya aburres siempre  andas criticando de todo puede que comenten  a tu hermana pero no se ignifica que son patetio ",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Vale pero, ¿comiste caca de perro o la reemplazaste por otra cosa?",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Dalas tenes que hablar también de wanda, esta casado con un futbolista argentino llamado Icardi que juega en el PSG, ell",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Yo llegue a este canal por las tetas pero me quede por el meme que eres, no por la personalidad que tienes que es nula.",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Definitivamente ese gordo con cara de murciélago y sin gracia alguna tiene el peor fandom del mundo, el más desagradable",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "ARI NO SEAS MALA🤡",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "por culpa de personas como tú se les pone en duda a las mujeres que si sufren abusos, hay que tener poca vergüenza",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "P1s1to en la c4rcel, basura",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Espero que en algún momento explique porque, está bien vivir en Irlanda y mal en Andorra, a ver si va a resultar que est",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Por que la necesidad de criticar??? Lo conoces, sabes su vida? Has llevado sus zapatos?? Todos tenemos mil defectos, per",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "6:22 por eso el mundo está así etc etc etc muestras cuerpo y pues la mayoría de aquí son chicos dice no aumentar el odio",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Nmms tu no eres dalas puto whatthegame que le hiciste a falas",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "eres muy mala persona",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Re facha el nauter",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Pero tú de qué carajos hablas hipócrita y tú comienza dalasreview Como saco de boxeo ahora te vienes hacer el digno vaya",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "P I S I T O  E N  L A  C A R C E L, T U  Y  M I A R E",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "DOS comentarios humorísticos y es mala persona, obseso y un puto acosador, pero él no, desspués de llamarle esto, además",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Tal vez ella empiece a madurar cuando llegue a los 40, mucho no le falta (para los 40, porque para madurar aun le falta ",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Me reí tanto con tu publicación en twitter, solo muestra tu desesperación por aprobación, por fama, que pena das. Que tr",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Bueno es que tú dices que es un baboso, pero tú mismo dices que hay que mostrar pruebas ...",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Me carga la risa falsa de dalas!",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "ODIAR ES COMO TOMARSE EL VENENO UNO MISMO Y ESPERAR A QUE SE MUERA EL DE AL LADO. Lo de vender odio aunque veas que come",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Con ese último acto de cobardes se les acabó el teatrico no te preocupes",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Me hace gracia de que se ria y se burle de las mierdas de la davida y demás y coge y sube mierdas así jajaja jajaj",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Un puto cobarde Jordi, como no tendrá nada que responder se calla como si no pasara nada. Claro como con el confinamient",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Te diría cometela porque tu te comías la caca 💩 😂😂😂",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Se llama pon una denuncia falsa y roba un perro con mi madre loca",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Nunca comento pero los comentarios de \"ya no tendría una conversación contigo después de este vídeo\" sois tontos? Para e",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "No he insultado \"alrabos\" k pedo k pedo",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Listo para el juicio? Cerdo",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Jordi dice que hagamos, en nuestra vida privada, lo que nos de la gana pero, por favor, Jordi, lo hacemos con gente que ",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "WISMICHU FACHA",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "No puedo creerlo  Por favor DESAPARECE PARA SIEMPRE nadie te echará de menos y menos después de lo que hizo el ENFERMO d",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Javi, por este tipo de vídeos es por el que me desuscribí  de tu canal y por el cual nunca te seguiré de nuevo, porque e",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Que fea persona eres.... como te atreves hacerle a Javi algo de esa magnitud! Porque lo hiciste? Y ahora quieres formar ",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "¿De qué progresión hablas? No tienes talento para esto, y lo peor es que los que te rodean no te lo dicen por no lastima",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Primero solo te gustaban las tias y ahora los tíos?  Coño miraré desepcionas 😥",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Primero pide perdón y luego sube el video, se contradice sola Y ahora los títulos de los vídeos son tan clickbait y tan ",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "gay!",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Yo por temas de estudios tengo que viajar mucho en blablacar y he perdido ya la cuenta de tíos que me han cogido el telé",
+        "esperado": 1,
+        "obtenido": []
+      },
+      {
+        "texto": "Ella no es amiga de ped.....s, es amiga de los capataces ó jinetes 🤣🤣🤣. Que se le va a comparar con LizyP, que además de",
+        "esperado": 0,
+        "obtenido": [
+          "odio"
+        ]
+      },
+      {
+        "texto": "alguien nota que detrás de esta tipa hay algo que se mueve? alguien sabe que es? :v",
+        "esperado": 0,
+        "obtenido": [
+          "odio"
+        ]
+      },
+      {
+        "texto": "Dallas la gente no es tonta, nosotros sabemos que es tal cual lo que dices... Lo que si queda de esta polémica, es que s",
+        "esperado": 0,
+        "obtenido": [
+          "insulto"
+        ]
+      },
+      {
+        "texto": "El de tarde de mierda fue el vídeo por el que me suscribí a tu canal, y si esta tremendamente infravalorado",
+        "esperado": 0,
+        "obtenido": [
+          "insulto"
+        ]
+      },
+      {
+        "texto": "Profe: A correr un 1 kilómetro  El dandy de Barcelona: Va a ir a correr su puta madre",
+        "esperado": 0,
+        "obtenido": [
+          "insulto"
+        ]
+      },
+      {
+        "texto": "7:50 como se supone que ese tio pobre no se puede permitirse unos piñones pero si una camara que se ve a 1080",
+        "esperado": 0,
+        "obtenido": [
+          "odio"
+        ]
+      },
+      {
+        "texto": "Yo ni los conocía y la verdad son normales y me importa una mierda lo que digan para mi no son guapos ninguno",
+        "esperado": 0,
+        "obtenido": [
+          "insulto"
+        ]
+      },
+      {
+        "texto": "Esa vieja no es a la que llamaban \"Chica Gamer\"? Edit: Ya me di cuenta que es su hermana jajaja xd lo siento :c",
+        "esperado": 0,
+        "obtenido": [
+          "agresion",
+          "odio"
+        ]
+      },
+      {
+        "texto": "Te vez muy bien ... Te quiero conocer ...oye una pregunta eres modelo por que como llegate al lugar y te pusiste en la a",
+        "esperado": 0,
+        "obtenido": [
+          "odio"
+        ]
+      },
+      {
+        "texto": "oye pues que bien por ti, a nosotros no nos importa, no entiendo que le ve la gente a esta tipa",
+        "esperado": 0,
+        "obtenido": [
+          "agresion",
+          "odio"
+        ]
+      },
+      {
+        "texto": "Sube video joputa Ajjaja",
+        "esperado": 0,
+        "obtenido": [
+          "agresion",
+          "odio"
+        ]
+      },
+      {
+        "texto": "8:35 miare's face like *no entiendo una puta mierda*",
+        "esperado": 0,
+        "obtenido": [
+          "insulto"
+        ]
+      }
+    ]
+  }
+}

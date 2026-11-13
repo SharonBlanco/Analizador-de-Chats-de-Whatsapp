@@ -522,7 +522,8 @@ def preparar_memoria() -> None:
     # Con Ollama el modelo de texto vive en otro proceso (el servidor de Ollama): este worker no carga
     # pysentimiento, así que el plan no le reserva esa memoria (y le queda más para YOLO o Whisper).
     ollama = bool(texto_modelo and detectores and DETECCION and "texto" in MIS_POOLS
-                  and detectores.motor_texto() == "ollama")
+                  and detectores.motor_texto() == "ollama" and detectores.OLLAMA_CANDIDATOS == "ollama")
+    # (en el modo combinado RoBERTuito sí se carga en el worker: el plan le reserva su memoria como antes)
     PLAN = memoria.planificar(MIS_POOLS, presupuesto, memoria.proceso_mb().get("rss") or 60,
                               texto_modelo=texto_modelo and detectores is not None and not ollama,
                               whisper_preferido=detectores.tamano_whisper(disp) if detectores else "small",
