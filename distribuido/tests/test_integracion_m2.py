@@ -179,6 +179,41 @@ class TestIntegracionM2(unittest.TestCase):
         self.p._registrar_pendientes.assert_called_once()
         self.p._despachar.assert_called_once()
 
+    def test_reintento_libera_despacho_m2(self):
+        """Un resultado reintentable libera el despacho M2."""
+        import json
+
+        st = self.tr["subtareas"]["st-1"]
+        st["estado"] = "retrying"
+        st["despachada"] = True
+
+        self.p.despachadas.add("st-1")
+        self.p._despachar = Mock(return_value=True)
+        self.p._guardar_registro = Mock()
+        self.p._procesar = Mock(return_value=None)
+
+        canal = Mock()
+        metodo = Mock(delivery_tag=1)
+
+        mensaje = {
+            "evento": "fin",
+            "trabajo": "tr-001",
+            "subtarea": "st-1",
+            "estado": "failed",
+        }
+
+        self.p._al_resultado(
+            canal,
+            metodo,
+            None,
+            json.dumps(mensaje).encode("utf-8"),
+        )
+
+        self.assertFalse(st["despachada"])
+        self.assertNotIn("st-1", self.p.despachadas)
+        self.p._despachar.assert_called_once()
+        canal.basic_ack.assert_called_once_with(delivery_tag=1)
+
 
 if __name__ == "__main__":
     unittest.main()

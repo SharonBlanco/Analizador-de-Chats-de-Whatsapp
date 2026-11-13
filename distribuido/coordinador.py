@@ -540,11 +540,12 @@ class Plataforma:
                     st = tr["subtareas"].get(id_st) if tr else None
 
                     if tr and tr.get("m2") and st:
-                        if st["estado"] in FINALES_ST:
+                        if st["estado"] in FINALES_ST or st["estado"] == "retrying":
                             self.despachadas.discard(id_st)
                             st["despachada"] = False
                             self._guardar(tr)
                             self._despachar()
+
             # Conservar el registro de trabajadores.
             self._guardar_registro()
             # Repetir la cancelación si un worker comenzó
