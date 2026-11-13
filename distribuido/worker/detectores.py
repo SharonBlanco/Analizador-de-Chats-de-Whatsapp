@@ -239,6 +239,10 @@ OLLAMA_LOTE = int(config("OLLAMA_LOTE", "25"))          # mensajes por consulta 
 OLLAMA_MANTENER = config("OLLAMA_MANTENER", "3m")
 CONTEXTO_OLLAMA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "contexto_ollama.md")
 _CATEGORIAS_LLM = ["amenaza", "ilicito", "odio", "agresion", "insulto"]
+_RE_NIEGA = re.compile(r"\b(broma|bromea|en chiste|chiste|sarcasmo|ironia|no hay (agresion|amenaza|insulto|ofensa|nada)|no contiene|sin (agresion|intencion|ofensa)|mensaje (normal|cotidiano)|es normal)\b")
+# desear un mal no es amenazar ("ojalá te mueras"): sin un anuncio de daño propio ("voy a", "vas a ver") baja a agresión
+_RE_DESEO = re.compile(r"\b(ojala|espero que|que te (mueras|pudras|den|parta)|que se te (regrese|devuelva))\b")
+_RE_ANUNCIO = re.compile(r"\b(voy|vamos|van) a\b|\bte (voy|vamos)\b|\bvas a ver\b|\bse donde\b|\bsi no\b")
 _MULETILLAS = {"mierda", "puta", "puto", "carajo", "joder", "verga", "hijueputa", "mae", "playa"}
 _ORDEN_CAT = ["normal", "insulto", "agresion", "odio", "ilicito", "amenaza"]     # de menos a más grave
 _ETIQUETAS = _CATEGORIAS_LLM + ["normal"]   # se le pide una etiqueta para CADA mensaje (si no, se salta algunos)
@@ -366,13 +370,21 @@ def _clasificar_ollama(textos: list[str]) -> list[list[dict]]:
                          f"Mensaje a revisar: «{limpio[i]}»\n\n"
                          f"Una primera lectura rápida lo marcó como \"{cat}\", pero puede estar equivocada. "
                          "Revisalo con cuidado: primero explicá con tus palabras qué dice el mensaje (que_dice), "
-                         "después elegí la categoría: amenaza (incluye intimidación), ilicito (cualquier delito: "
+                         "después elegí la categoría: amenaza (solo si anuncia un daño que va a causar; desear un mal "
+                         "o mandar a la mierda no es amenaza), ilicito (planear o cometer un delito: "
                          "drogas aunque sea para consumo propio, armas, robos…), odio, agresion (incluye violencia "
                          "física y ciberbullying), insulto (dirigido a alguien) o normal (mensaje cotidiano, queja, "
                          "broma o pregunta sin nada de lo anterior). Al final, la severidad y un motivo corto.",
                          _ESQUEMA_REVISION)
         final = r.get("categoria")
+        # El modelo a veces se contradice: explica "es una broma" o "no es una amenaza" y aun así elige una
+        # categoría. Si su propia explicación dice que no hay agresión, se descarta.
+        if _RE_NIEGA.search(_sin_tildes(f"{r.get('que_dice', '')} {r.get('motivo', '')}")):
+            continue
         # las reglas de amenaza e ilícito son precisas: si el modelo confirma que hay algo, se respeta esa categoría
+        texto_sin = _sin_tildes(limpio[i])
+        if final == "amenaza" and _RE_DESEO.search(texto_sin) and not _RE_ANUNCIO.search(texto_sin):
+            final, r["severidad"] = "agresion", "media"
         if por_regla.get(i) in ("amenaza", "ilicito") and _ORDEN_CAT.index(por_regla[i]) > _ORDEN_CAT.index(final or "normal"):
             final = por_regla[i]
         if final in _CATEGORIAS_LLM:     # (un campo "¿hay que marcarlo?" sí/no contradecía su propia explicación)

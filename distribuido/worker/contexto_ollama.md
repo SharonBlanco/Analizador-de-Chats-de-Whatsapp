@@ -45,7 +45,9 @@ Reglas importantes:
 - Las quejas y la vida cotidiana son normal aunque suenen negativas: "se fue el internet otra vez", "qué presa", "estoy harta del trabajo", "llueve horrible", "perdí el bus", "se me cayó el cel".
 - Clasificá cada mensaje por lo que dice ÉL MISMO: que un mensaje vecino sea agresivo no vuelve agresivo al siguiente.
 - Si lo que dice el mensaje no es una agresión, un delito o un ataque, la categoría es normal. Pedir algo, coordinar, preguntar o quejarse es normal: "necesito la factura de ayer", "¿a qué hora llegás?", "mandame el documento".
-- Si dudás entre dos categorías, elegí la más grave: amenaza > ilicito > odio > agresion > insulto.
+- AMENAZA es solo cuando alguien anuncia un daño que él (u otros) va a causar: "te voy a…", "vas a ver", "sé dónde vivís", "si no…, publico tus fotos". NO son amenaza: desear un mal ("ojalá te mueras", "espero que se te regrese") → agresion; mandar a la mierda o insultar ("vete a la mierda") → insulto; decir que va a denunciar a alguien ante la policía o la justicia → normal (es un derecho, no un daño).
+- ILICITO es hablar de cometer o planear un delito. Acusar a otro de un delito ("tú lo robaste"), quejarse de precios caros o hablar de una estafa que sufrió alguien NO es ilicito.
+- Si dudás entre dos categorías, elegí la MENOS grave. Si dudás entre marcarlo o no, y no hay un insulto o un daño claro, es normal.
 - El texto puede venir de una transcripción de audio con errores ("vamos a saltar" en vez de "vamos a asaltar"); interpretá la intención.
 
 Respondé SOLO con JSON, en el formato que se te pida.
