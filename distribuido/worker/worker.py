@@ -97,6 +97,11 @@ def detectar(funcion, *args):
     try:
         return funcion(*args), "ok"
     except detectores.DeteccionNoDisponible as e:
+        if "Ollama" in str(e):
+            # Ollama caído o lento: NO se da la sub-tarea por terminada sin analizar (antes pasaba: un nodo
+            # con Ollama caído "terminaba" bloques en 0,1 s/mensaje sin buscar nada). Falla como reintentable
+            # y el coordinador la re-encola para otro worker.
+            raise RuntimeError(f"detector de texto no disponible: {e}") from e
         return None, f"no disponible: {e}"
 
 for p in MIS_POOLS:
@@ -532,6 +537,13 @@ def preparar_memoria() -> None:
         Path("/proc/self/oom_score_adj").write_text("500")
     except OSError:
         pass
+    # Si este nodo debería clasificar texto con Ollama pero Ollama no responde, no atiende la cola de
+    # texto (si no, tomaría bloques que no puede analizar). Los demás pools siguen.
+    if ("texto" in MIS_POOLS and detectores and DETECCION and config("WA_TEXTO_MOTOR", "auto").lower() == "ollama"
+            and not detectores.ollama_responde()):
+        MIS_POOLS = [p for p in MIS_POOLS if p != "texto"]
+        print(f"  [!] Ollama no responde en {detectores.OLLAMA_URL} (o no tiene {detectores.OLLAMA_MODELO}): "
+              "este worker NO atiende texto. Revise que Ollama esté corriendo y reinicie el worker.")
     presupuesto, origen = memoria.presupuesto_mb()
     disp = detectores.dispositivo() if detectores and DETECCION else "cpu"
     texto_modelo = config("WA_TEXTO_MODELO", "1") not in ("0", "no", "false")

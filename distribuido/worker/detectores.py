@@ -278,6 +278,15 @@ def _pedir_ollama(ruta: str, datos: dict | None = None, timeout: float = 300):
         return _json.loads(r.read())
 
 
+def ollama_responde() -> bool:
+    """¿El servidor de Ollama de este nodo responde y tiene el modelo? (sin caché)"""
+    try:
+        nombres = {x["name"] for x in _pedir_ollama("/api/tags", timeout=5).get("models", [])}
+        return OLLAMA_MODELO in nombres or f"{OLLAMA_MODELO}:latest" in nombres
+    except (OSError, ValueError):
+        return False
+
+
 def motor_texto() -> str:
     """'ollama' o 'pysentimiento', según WA_TEXTO_MOTOR y si Ollama responde (se revisa una vez)."""
     m = config("WA_TEXTO_MOTOR", "auto").lower()
