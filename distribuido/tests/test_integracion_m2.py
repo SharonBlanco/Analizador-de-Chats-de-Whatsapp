@@ -47,11 +47,17 @@ class TestIntegracionM2(unittest.TestCase):
                 "estado": "pendiente",
                 "despachada": False,
             }
-
         self.tr = {
             "id": "tr-001",
+            "caso": "caso-prueba",
+            "chat": "Chat de prueba",
             "m2": True,
+            "prioridad": 5,
             "estado": "queued",
+            "creado": time.time(),
+            "iniciado": None,
+            "terminado": None,
+            "resultado": None,
             "subtareas": subtareas,
         }
         self.p.trabajos["tr-001"] = self.tr
@@ -104,6 +110,42 @@ class TestIntegracionM2(unittest.TestCase):
 
         for st in self.tr["subtareas"].values():
             self.assertEqual(st["estado"], "cancelled")
+
+    def test_reanudar_m2_no_publica_subtareas_directamente(self):
+        """M2 debe reanudar mediante el planificador, no por publicación directa."""
+        from unittest.mock import patch
+
+        self.tr["estado"] = "cancelled"
+        self.tr["iniciado"] = None
+        self.tr["caso"] = "caso-prueba"
+        self.tr["subtareas"]["st-1"]["estado"] = "cancelled"
+        self.tr["subtareas"]["st-2"]["estado"] = "completed"
+
+        self.p.planificador.cancelar("st-1")
+        self.p.planificador.cancelar("st-2")
+        self.p._registrar_pendientes = Mock()
+        self.p._despachar = Mock(return_value=False)
+
+        with patch.object(self.p, "detalle", return_value={}):
+            self.p.reanudar("tr-001")
+
+        self.assertEqual(
+            self.tr["subtareas"]["st-1"]["estado"],
+            "pendiente"
+        )
+        self.assertEqual(
+            self.tr["subtareas"]["st-2"]["estado"],
+            "completed"
+        )
+        self.p._registrar_pendientes.assert_called_once()
+        self.p._despachar.assert_called_once()
+
+        # Solo debe enviarse el mensaje de control "reanudar".
+        self.assertEqual(self.p._publicar.call_count, 1)
+        self.assertEqual(
+            self.p._publicar.call_args.kwargs["exchange"],
+            "wa.control"
+        )
 
 
 if __name__ == "__main__":
