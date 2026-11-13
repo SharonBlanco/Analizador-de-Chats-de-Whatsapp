@@ -436,7 +436,11 @@ def consumir() -> None:
             canal.queue_bind(queue=cola_control, exchange=EXCHANGE_CONTROL)
             canal.basic_consume(queue=cola_control, on_message_callback=al_control, auto_ack=True)
             for p in MIS_POOLS:
-                canal.basic_consume(queue=POOLS[p], on_message_callback=al_mensaje)
+                # M5: prioridad de consumidor. RabbitMQ entrega cada mensaje al consumidor de mayor prioridad
+                # que tenga lugar libre; uno de menor prioridad solo recibe cuando los de mayor están ocupados.
+                # Así un nodo sin GPU ayuda con texto/fotos/audio solo cuando los nodos con GPU están llenos.
+                canal.basic_consume(queue=POOLS[p], on_message_callback=al_mensaje,
+                                    arguments={"x-priority": prioridad_consumidor(p)})
             consumidor["conexion"], consumidor["canal"] = conexion, canal
             print(f"[*] {WORKER_ID} esperando sub-tareas de: {', '.join(MIS_POOLS)} (hasta {CONCURRENCIA} a la vez)")
             while True:
@@ -469,6 +473,18 @@ def maquina() -> dict:
             "nucleos": os.cpu_count(), "ram_gb": round(psutil.virtual_memory().total / 2 ** 30, 1) if psutil else None,
             "so": f"{platform.system()} {platform.release()}" + (" (Docker)" if en_docker else ""),
             "usuario": "root" if hasattr(os, "geteuid") and os.geteuid() == 0 else "sin privilegios"}
+
+
+def prioridad_consumidor(pool: str) -> int:
+    """WA_PRIORIDAD_<POOL> (p. ej. WA_PRIORIDAD_TEXTO=0) o, por defecto, 10 si el nodo tiene GPU y 0 si no
+    (los modelos son entre 5 y 25 veces más rápidos en GPU, ver docs/modulo-M5-heterogeneo.md).
+    Los adjuntos (hash y metadatos, sin modelo) no tienen preferencia."""
+    fijo = config(f"WA_PRIORIDAD_{pool.upper()}", "")
+    if fijo.strip():
+        return int(fijo)
+    if pool == "adjuntos" or not (detectores and DETECCION):
+        return 0
+    return 10 if detectores.dispositivo() == "cuda" else 0
 
 
 def latidos() -> None:
@@ -557,6 +573,8 @@ if __name__ == "__main__":
     m = maquina()
     print("=" * 60)
     print(f"WORKER {WORKER_ID} (v{VERSION}) · pools: {', '.join(MIS_POOLS)} · concurrencia {CONCURRENCIA}")
+    print("Prioridad por cola (M5; mayor = recibe primero): "
+          + ", ".join(f"{p} {prioridad_consumidor(p)}" for p in MIS_POOLS))
     print(f"Máquina: {m['hostname']} · {m['cpu']} · {m['nucleos']} núcleos · {m['so']} · {m['usuario']}")
     print(f"Coordinador (adjuntos): la dirección que mande el coordinador en cada tarea (si no, {COORDINADOR_URL})" + ("" if TOKEN else "  [!] sin WORKER_TOKEN: no podrá verificar adjuntos"))
     print(f"Detección: {'desactivada' if not DETECCION else FALTA_DETECCION or 'ok, dispositivo ' + detectores.dispositivo()}")

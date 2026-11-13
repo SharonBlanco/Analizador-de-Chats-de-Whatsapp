@@ -68,6 +68,8 @@ Desde la semana 15 el texto se clasifica con un modelo de lenguaje local (Ollama
 
 Un modelo de lenguaje **genera** la respuesta palabra por palabra: cada palabra necesita una pasada completa por la red, y ese paso es secuencial. Por eso es entre 10 y 25 veces más lento que RoBERTuito, que solo clasifica. En CPU (Colab sin GPU, Azure) es mucho más lento todavía, así que el texto pasó a depender de la GPU. No se midió Ollama en CPU con el mismo script, pero en las corridas se observó que los nodos sin GPU tardaban bastante más con cada bloque. Por eso el nodo de Azure (solo CPU) se configuró **sin el pool de texto** (`WORKER_POOLS=imagen,adjuntos,audio`): el texto lo toman los nodos con GPU y Azure procesa fotos, adjuntos y audios. Es la política de *routing* aplicada con los pools de cada nodo.
 
+**Prioridad de consumidor (para que los nodos sin GPU no queden ociosos):** cada worker se suscribe a cada cola con `x-priority` = 10 si tiene GPU y 0 si no (`prioridad_consumidor()` en `worker.py`; se puede fijar con `WA_PRIORIDAD_<POOL>`). RabbitMQ entrega cada mensaje al consumidor de mayor prioridad que tenga lugar libre, así que un nodo sin GPU solo recibe texto, fotos o audios cuando los nodos con GPU ya están ocupados. Con esto Azure volvió a atender texto (`WORKER_POOLS=texto,imagen,adjuntos,audio`) sin quitarle bloques a los nodos rápidos.
+
 ## 5. Interpretación y política de routing
 - **La aceleración depende de cuánto paralelismo tiene la tarea**, como predice la teoría:
   - **YOLO (11,3×)** es una red de convoluciones sobre una imagen entera: millones de operaciones independientes, justo lo que aprovechan los miles de núcleos de la GPU.
