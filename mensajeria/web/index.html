@@ -1651,7 +1651,7 @@ function tablaWorkers(ws) {
   if (!ws.length) return `<div class="vacio"><h2>No hay workers conectados</h2>
     <p>En cada computadora que aporte capacidad, desde la raíz del proyecto:</p>
     <pre class="cmd" style="max-width:560px;margin:10px auto 0;text-align:left">python3 distribuido/worker/worker.py</pre></div>`;
-  return `<table><thead><tr><th>Worker</th><th>Máquina</th><th>Pools</th><th>Detección</th><th>Estado</th><th class="der">CPU</th><th class="der">RAM</th>
+  return `<table><thead><tr><th>Worker</th><th>Máquina</th><th>Pools</th><th>Detección</th><th>Estado</th><th style="min-width:260px">Haciendo ahora</th><th class="der">CPU</th><th class="der">RAM</th>
     <th style="min-width:200px">Memoria (M1)</th><th class="der">En curso</th><th class="der" title="Desde que se conectó por primera vez (no se pierde al desconectarse)">Sub-tareas procesadas</th><th class="der">Casos</th><th class="der">Fallidas</th><th class="der">Cómputo</th><th>Usuario</th></tr></thead>
     <tbody>${ws.map(w => `<tr>
       <td><div style="font-weight:600;white-space:nowrap">${esc(w.worker)}</div><div class="mono" style="white-space:normal;word-break:break-all;max-width:180px">${esc(w.maquina?.hostname || "")}</div></td>
@@ -1661,6 +1661,10 @@ function tablaWorkers(ws) {
         ${Object.entries(w.modelos || {}).map(([n, m]) => `<div style="color:var(--texto-2)" title="carga ${m.segundos} s">${esc(n)}: +${Math.round((m.rss_despues_mb || 0) - (m.rss_antes_mb || 0))} MB</div>`).join("")}</td>
       <td style="white-space:nowrap">${w.activo ? `<span class="insignia ok">Conectado</span>` : `<span class="insignia">Desconectado</span>
         <div style="font-size:12px;color:var(--texto-2);margin-top:3px">visto hace ${fmtHace(w.hace)}</div>`}</td>
+      <td style="font-size:12.5px;white-space:normal">${(w.haciendo || []).length ? w.haciendo.map(h =>
+        `<div style="margin-bottom:4px"><a href="#/caso/${encodeURIComponent(h.caso)}/paralelo/${encodeURIComponent(h.trabajo)}">${esc(h.chat || h.caso)}</a>
+         <div style="color:var(--texto-2)">${esc(h.tipo)} · ${esc(h.detalle)} · hace ${fmtSeg(h.segundos)}</div></div>`).join("")
+        : `<span style="color:var(--texto-2)">${w.activo ? "esperando trabajo" : "—"}</span>`}</td>
       <td class="der num">${w.activo && w.cpu != null ? w.cpu.toLocaleString("es-CR") + " %" : "—"}</td>
       <td class="der num">${w.activo && w.ram != null ? w.ram.toLocaleString("es-CR") + " %" : "—"}</td>
       <td>${w.activo ? celdaMemoria(w) : `<span style="color:var(--texto-2)">—</span>`}</td>
@@ -1725,7 +1729,7 @@ function cuerpoWorkers() {
     ${kpi("Trabajos", fmtN(p.trabajos.length), `${fmtN(p.trabajos.filter(t => !FINAL_TR.has(t.estado)).length)} en curso`)}
   </section>
   <section class="panel tabla-scroll" style="margin-top:20px"><div class="panel-cab" style="padding-bottom:12px"><div><h2>Workers</h2>
-    <p class="panel-desc">Todos los workers que se conectaron alguna vez. Pasa a "desconectado" si no envía latidos durante 15 s; su historial se conserva.</p></div></div>${tablaWorkers(p.workers)}</section>
+    <p class="panel-desc">Todos los workers que se conectaron alguna vez. Pasa a "desconectado" si no envía latidos durante 30 s; su historial se conserva.</p></div></div>${tablaWorkers(p.workers)}</section>
   <section class="panel tabla-scroll" style="margin-top:20px"><div class="panel-cab" style="padding-bottom:12px"><div><h2>Trabajos recientes</h2>
     <p class="panel-desc">Procesamientos en paralelo de todas las conversaciones</p></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">${(() => {

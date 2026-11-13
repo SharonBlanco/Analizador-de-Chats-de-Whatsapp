@@ -46,6 +46,7 @@ from planificador import Planificador, Tarea, convertir_prioridad
 FINALES_ST = {"completed", "failed", "cancelled"}
 FINALES_TR = {"completed", "partially_completed", "failed", "cancelled"}
 MAX_BLOQUES = 64
+MAX_MENSAJES_BLOQUE = int(config("WA_MAX_MENSAJES_BLOQUE", "200"))
 SECCIONES = {   # qué partes del resultado se comparan con el análisis local
     "Mensajes, participantes y respuestas": ["resumen", "participantes"],
     "Actividad por día": ["por_dia"],
@@ -153,6 +154,7 @@ class Plataforma:
                 print(f"[plataforma] no se pudo leer {f.name}")
         self._cargar_registro()
         threading.Thread(target=self._escuchar, daemon=True, name="resultados").start()
+        threading.Thread(target=self._escuchar_latidos, daemon=True, name="latidos").start()
 
     # ============================================================ registro de workers
     def _entrada(self, worker: str) -> dict:
@@ -399,10 +401,7 @@ class Plataforma:
                 conexion = pika.BlockingConnection(parametros_rabbit())
                 canal = conexion.channel()
                 declarar(canal)
-                cola_latidos = canal.queue_declare(queue="", exclusive=True).method.queue
-                canal.queue_bind(queue=cola_latidos, exchange=EXCHANGE_LATIDOS)
                 canal.basic_consume(queue=COLA_RESULTADOS, on_message_callback=self._al_resultado)
-                canal.basic_consume(queue=cola_latidos, on_message_callback=self._al_latido, auto_ack=True)
                 self.conectado, self.error = True, None
                 print(f"[plataforma] conectado a RabbitMQ en {self.destino}")
                 if primera:
@@ -417,6 +416,24 @@ class Plataforma:
                     print(f"[plataforma] sin conexión con RabbitMQ ({self.destino}): {e}")
                 self.conectado = False
                 self.error = f"No hay conexión con RabbitMQ en {self.destino} ({type(e).__name__})"
+                time.sleep(5)
+
+    def _escuchar_latidos(self) -> None:
+        """Hilo y conexión APARTE para los latidos. Antes compartían hilo con los resultados: mientras se
+        consolidaba un caso grande, los latidos esperaban en fila y los workers aparecían desconectados
+        aunque estuvieran trabajando."""
+        while True:
+            try:
+                conexion = pika.BlockingConnection(parametros_rabbit())
+                canal = conexion.channel()
+                declarar(canal)
+                cola = canal.queue_declare(queue="", exclusive=True).method.queue
+                canal.queue_bind(queue=cola, exchange=EXCHANGE_LATIDOS)
+                canal.basic_consume(queue=cola, on_message_callback=self._al_latido, auto_ack=True)
+                canal.start_consuming()
+            except ConfiguracionIncompleta:
+                return
+            except Exception:  # noqa: BLE001 — reintentar
                 time.sleep(5)
 
     def _al_latido(self, _canal, _metodo, _props, cuerpo) -> None:
@@ -499,7 +516,10 @@ class Plataforma:
         if not mensajes:
             raise ErrorTrabajo("La conversación no tiene mensajes")
         n = len(mensajes)
-        bloques = max(1, min(int(bloques), MAX_BLOQUES, n))
+        # Bloques de como máximo MAX_MENSAJES_BLOQUE mensajes: con el detector de texto con Ollama (~0,3 s por
+        # mensaje) un bloque de 1000+ mensajes tardaba varios minutos y dejaba a otros workers sin trabajo.
+        bloques = max(int(bloques), math.ceil(n / MAX_MENSAJES_BLOQUE))
+        bloques = max(1, min(bloques, MAX_BLOQUES, n))
         tam = math.ceil(n / bloques)
         rangos = [(i, min(i + tam, n)) for i in range(0, n, tam)]
         subtareas: dict[str, dict] = {}
@@ -722,6 +742,11 @@ class Plataforma:
         st = tr["subtareas"].get(msg.get("subtarea")) if tr else None
         if st and st["estado"] == "cancelled" and msg.get("evento") == "inicio":
             return tr["id"]
+        if not tr and msg.get("evento") == "inicio" and msg.get("trabajo"):
+            # Sub-tarea de un trabajo que ya no existe (borrado, o movido a .respaldos/ con "Reiniciar"):
+            # un worker la tenía tomada y RabbitMQ no la vacía. Se le avisa que la descarte.
+            print(f"[plataforma] {msg.get('worker')} empezó una sub-tarea de un trabajo que ya no existe: se cancela")
+            return msg["trabajo"]
         evento, worker = msg.get("evento"), msg.get("worker")
         if evento == "oom":
             return self._oom(tr, st, msg)
@@ -940,6 +965,17 @@ class Plataforma:
     def _workers(self) -> list[dict]:
         """Todos los workers que alguna vez se conectaron (no se borran al desconectarse), con su historial."""
         ahora = time.time()
+        haciendo: dict[str, list] = {}               # qué sub-tarea tiene cada worker en este momento
+        for tr in self.trabajos.values():
+            if tr["estado"] in FINALES_TR:
+                continue
+            for st in tr["subtareas"].values():
+                if st["estado"] == "procesando" and st.get("worker"):
+                    detalle = (f"mensajes {st.get('desde')}–{st.get('hasta')} ({st.get('mensajes')})" if st["tipo"] == "texto"
+                               else f"{st.get('tipo_archivo') or 'adjunto'}: {st.get('archivo')}")
+                    haciendo.setdefault(st["worker"], []).append({
+                        "trabajo": tr["id"], "caso": tr["caso"], "chat": tr["chat"], "tipo": st["tipo"],
+                        "detalle": detalle, "segundos": round(ahora - (st.get("inicio") or ahora))})
         lista = []
         for w in sorted(set(self.workers) | set(self.registro)):
             vivo = self.workers.get(w)
@@ -948,6 +984,7 @@ class Plataforma:
             base = dict(vivo) if vivo else {"worker": w, "maquina": r.get("maquina"), "pools": r.get("pools"),
                                             "dispositivo": r.get("dispositivo"), "en_curso": 0}
             lista.append({**base, "activo": ahora - visto < SIN_SENAL, "hace": round(ahora - visto, 1),
+                          "haciendo": haciendo.get(w, []),
                           "historial": {k: r.get(k) for k in ("primera_vez", "ultima_vez", "subtareas_completadas",
                                                                "subtareas_fallidas", "por_tipo", "segundos_computo")}
                                        | {"trabajos": len(r.get("trabajos") or []), "casos": len(r.get("casos") or [])}})

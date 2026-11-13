@@ -59,7 +59,7 @@ EXCHANGE_CONTROL = f"{PREFIJO}control"                  # coordinador → worker
 ARGS_COLA = {"x-max-priority": 10}                      # prioridad 1 (baja) a 10 (alta)
 
 INTERVALO_LATIDO = 5          # s entre latidos de un worker
-SIN_SENAL = 15                # s sin latido para considerar un worker desconectado
+SIN_SENAL = 30                # s sin latido para considerar un worker desconectado (latido cada 5 s: tolera 5 perdidos)
 MAX_REINTENTOS = int(config("WA_MAX_REINTENTOS", "3"))
 ESPERA_REINTENTO = float(config("WA_ESPERA_REINTENTO", "2"))   # s; se multiplica por el n.º de intento
 
