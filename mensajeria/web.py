@@ -39,6 +39,11 @@ from sesiones import Sesiones
 from usuarios import Usuarios, autorizado
 from importar import ErrorImportacion, importar  # noqa: E402
 from whatsapp_formato import parsear_archivo  # noqa: E402
+# M4_ADAPTADOR_BOVEDA_V1
+from boveda import es_cifrado, mensajes_cifrados, archivo_descifrado, ErrorBoveda  # noqa: E402
+from cifrado import leer_clave, ErrorCifrado  # noqa: E402
+from contextlib import contextmanager
+
 from estadisticas import calcular as calcular_estadisticas  # noqa: E402
 from almacen import Almacen  # noqa: E402  (M3)
 from receptor import Receptor  # noqa: E402  (M3)
@@ -80,6 +85,9 @@ _cache_lock = threading.Lock()
 
 
 def mensajes_de(carpeta: Path) -> list:
+    if es_cifrado(carpeta):
+        # No almacenar mensajes descifrados en el cache global.
+        return mensajes_cifrados(carpeta, DATASET)
     chat = carpeta / "chat.txt"
     marca = chat.stat().st_mtime_ns
     with _cache_lock:
@@ -98,6 +106,32 @@ def cargar_caso(caso: str) -> tuple[list, dict]:
     if not dentro(DATASET, carpeta) or not (carpeta / "metadata.json").is_file():
         raise ErrorTrabajo(f"El caso {caso} no existe")
     return mensajes_de(carpeta), json.loads((carpeta / "metadata.json").read_text(encoding="utf-8"))
+
+
+
+
+@contextmanager
+def _archivo_evidencia(carpeta: Path, nombre: str):
+    if nombre in ("chat.txt", "metadata.json") or Path(nombre).name != nombre:
+        raise FileNotFoundError("Evidencia no permitida")
+    meta = json.loads((carpeta / "metadata.json").read_text(encoding="utf-8"))
+    evidencia = meta.get("files", {}).get(nombre)
+    if not evidencia:
+        raise FileNotFoundError("Archivo no registrado")
+    if es_cifrado(carpeta):
+        clave = leer_clave(DATASET / ".seguridad" / "almacen-aes256.key")
+        with archivo_descifrado(carpeta, nombre, clave) as temporal:
+            # Verificar que el texto recuperado corresponda al hash de importacion.
+            with open(temporal, "rb") as f:
+                digest = hashlib.file_digest(f, "sha256").hexdigest()
+            if not hmac.compare_digest(digest, evidencia.get("sha256", "")):
+                raise ErrorBoveda("La huella SHA-256 no coincide")
+            yield temporal
+    else:
+        archivo = carpeta / nombre
+        if not dentro(carpeta, archivo) or not archivo.is_file():
+            raise FileNotFoundError("Archivo no encontrado")
+        yield archivo
 
 
 def estado_plataforma() -> dict:
@@ -132,9 +166,15 @@ def resumen_caso(carpeta: Path, asignaciones: dict | None = None) -> dict | None
     if asignaciones is None:
         asignaciones = ORG.estado()["asignaciones"]
     # Peso del chat: el .txt más sus adjuntos (lo que ocupa en disco, sin metadata.json)
-    bytes_chat = (carpeta / "chat.txt").stat().st_size
-    bytes_adjuntos = sum(f.stat().st_size for f in carpeta.iterdir()
-                         if f.is_file() and f.name not in ("chat.txt", "metadata.json"))
+    if es_cifrado(carpeta):
+        archivos_meta = m.get("files", {})
+        bytes_chat = (carpeta / archivos_meta["chat.txt"]["archivo_cifrado"]).stat().st_size
+        bytes_adjuntos = sum((carpeta / dato["archivo_cifrado"]).stat().st_size
+                             for nombre, dato in archivos_meta.items() if nombre != "chat.txt")
+    else:
+        bytes_chat = (carpeta / "chat.txt").stat().st_size
+        bytes_adjuntos = sum(f.stat().st_size for f in carpeta.iterdir()
+                             if f.is_file() and f.name not in ("chat.txt", "metadata.json"))
     return {"caso": carpeta.name, "chat": m.get("chat"), "fuente": m.get("fuente"),
             "bytes": bytes_chat + bytes_adjuntos, "bytes_chat": bytes_chat, "bytes_adjuntos": bytes_adjuntos,
             "mensajes": m.get("total_mensajes"), "participantes": len(m.get("participantes", [])),
@@ -393,10 +433,15 @@ class Manejador(BaseHTTPRequestHandler):
                 self._error(str(e), 404)
         elif len(partes) == 3 and partes[0] == "media":
             carpeta = self._caso(partes[1])
-            archivo = carpeta / partes[2] if carpeta else None
-            if not archivo or not dentro(carpeta, archivo) or not archivo.is_file():
+            if not carpeta:
                 return self._error("Archivo no encontrado", 404)
-            self._enviar_archivo(archivo)
+            try:
+                with _archivo_evidencia(carpeta, partes[2]) as archivo:
+                    self._enviar_archivo(archivo)
+            except FileNotFoundError:
+                self._error("Archivo no encontrado", 404)
+            except (ErrorBoveda, ErrorCifrado, OSError, ValueError) as e:
+                self._error(f"No se pudo verificar la evidencia: {e}", 422)
         else:
             self._error("No existe", 404)
 
@@ -657,17 +702,21 @@ class ManejadorWorkers(Manejador):
         if not carpeta:
             return self._error("Archivo no encontrado", 404)
         meta = json.loads((carpeta / "metadata.json").read_text(encoding="utf-8"))
-        archivo = carpeta / partes[2]
-        if partes[2] in ("chat.txt", "metadata.json") or partes[2] not in meta.get("files", {}) \
-                or not dentro(carpeta, archivo) or not archivo.is_file():
+        if partes[2] in ("chat.txt", "metadata.json") or partes[2] not in meta.get("files", {}):
             return self._error("Archivo no encontrado", 404)
-        if partes[0] == "manifiesto":
-            try:
-                tam = min(64 * 2**20, max(16 * 2**10, int((qs.get("bloque") or [2**20])[0])))
-            except ValueError:
-                return self._error("Tamaño de bloque inválido")
-            return self._json(self._manifiesto(archivo, meta["files"][partes[2]].get("sha256") or "", tam))
-        self._enviar_archivo(archivo)
+        try:
+            with _archivo_evidencia(carpeta, partes[2]) as archivo:
+                if partes[0] == "manifiesto":
+                    try:
+                        tam = min(64 * 2**20, max(16 * 2**10, int((qs.get("bloque") or [2**20])[0])))
+                    except ValueError:
+                        return self._error("Tamaño de bloque inválido")
+                    return self._json(self._manifiesto(archivo, meta["files"][partes[2]].get("sha256") or "", tam))
+                self._enviar_archivo(archivo)
+        except FileNotFoundError:
+            self._error("Archivo no encontrado", 404)
+        except (ErrorBoveda, ErrorCifrado, OSError, ValueError) as e:
+            self._error(f"No se pudo verificar la evidencia: {e}", 422)
 
     def do_POST(self):
         self._error("No existe", 404)
