@@ -42,3 +42,6 @@ dataset_generado/
 # Pesos de modelos descargados (YOLO)
 *.pt
 docs/mediciones/m1/**/.trabajos/
+
+# M4: certificados y claves privadas locales
+distribuido/certs/
