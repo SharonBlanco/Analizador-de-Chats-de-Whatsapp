@@ -127,6 +127,7 @@ class Plataforma:
         self.despachadas: set[str] = set()
         # M2: reservas de capacidad asociadas a subtareas.
         self.reservas: dict[str, str] = {}
+        self.m2_activo = config("WA_M2_ACTIVO", "0") == "1"
         self.alertas: deque = deque(maxlen=200)       # notificaciones asíncronas (B.4)
         self._n_alerta = 0
         self.conectado = False
@@ -378,19 +379,67 @@ class Plataforma:
 
         return agregadas
 
+
     def _despachar(self) -> bool:
-        """Selecciona y publica una subtarea pendiente de M2.
+        """Despacha una subtarea compatible usando M2.
 
         Debe llamarse con self.lock adquirido.
+        Solo permite una subtarea M2 en tránsito a la vez.
         """
-        tarea = self.planificador.siguiente()
+        if not self.m2_activo or not self.conectado:
+            return False
+
+        # No publicar otra subtarea M2 mientras haya una anterior
+        # sin terminar o una publicación de resultado incierto.
+        for tr in self.trabajos.values():
+            if not tr.get("m2") or tr["estado"] in FINALES_TR:
+                continue
+            for st in tr["subtareas"].values():
+                if st.get("publicacion_incierta"):
+                    return False
+                if st.get("despachada") and st["estado"] not in FINALES_ST:
+                    return False
+
+        # Comprobar que existe un worker activo con capacidad libre.
+        pools = set()
+        ahora = time.time()
+
+        for worker in self.workers.values():
+            if ahora - worker.get("visto", 0) >= SIN_SENAL:
+                continue
+            if int(worker.get("en_curso", 0)) >= int(worker.get("concurrencia", 1)):
+                continue
+            pools.update(worker.get("pools", []))
+
+        permitidos = [POOLS[p] for p in pools if p in POOLS]
+        tarea = self.planificador.siguiente(pools=permitidos)
+
         if tarea is None:
             return False
+
+        cuerpo = tarea.datos[1]
+        tr = self.trabajos.get(cuerpo["trabajo"])
+        st = tr["subtareas"].get(tarea.id) if tr else None
+
+        if not st or st["estado"] != "pendiente" or tr["estado"] in FINALES_TR:
+            return False
+        # Registrar incertidumbre antes de publicar.
+        # Evita una republicación automática después de una caída.
+        st["publicacion_incierta"] = True
+        self._guardar(tr)
         try:
             self._publicar([tarea.datos])
-        except Exception:
-            self.planificador.devolver(tarea)
-            raise
+        except Exception as e:
+            st["error_publicacion"] = f"{type(e).__name__}: {e}"
+            self._guardar(tr)
+            print(f"[M2] publicación incierta de {tarea.id}: {e}")
+            return False
+        st["despachada"] = True
+        st["publicacion_incierta"] = False
+        st["error_publicacion"] = None
+        self.despachadas.add(tarea.id)
+        self._guardar(tr)
+
         return True
 
     def _escuchar(self) -> None:
@@ -442,6 +491,8 @@ class Plataforma:
             ahora = time.time()
             with self.lock:
                 self.workers[latido["worker"]] = {**latido, "visto": ahora}
+                if self.m2_activo:
+                    self._despachar()
                 e = self._entrada(latido["worker"])
                 e.update(ultima_vez=ahora, maquina=latido.get("maquina"), dispositivo=latido.get("dispositivo"),
                          pools=latido.get("pools") or [])
@@ -491,21 +542,44 @@ class Plataforma:
         except OSError:
             pass
 
+
     def _al_resultado(self, canal, metodo, _props, cuerpo) -> None:
         try:
             msg = json.loads(cuerpo)
+
             with self.lock:
                 recancelar = self._procesar(msg)
-            self._guardar_registro()
-            if recancelar:
-                # Un worker que se conectó después de la cancelación no recibió el aviso y
-                # empezó una sub-tarea de ese trabajo: se lo repetimos para que la aborte.
-                canal.basic_publish(exchange=EXCHANGE_CONTROL, routing_key="",
-                                    body=json.dumps({"cancelar": recancelar}).encode())
-        except Exception as e:  # noqa: BLE001 — un mensaje dañado no debe tumbar el hilo
-            print(f"[plataforma] error con un resultado: {type(e).__name__}: {e}")
-        canal.basic_ack(delivery_tag=metodo.delivery_tag)
 
+                # M2: liberar la subtarea y continuar con el despacho.
+                if self.m2_activo and msg.get("evento") in ("fin", "cancelada"):
+                    id_st = msg.get("subtarea")
+                    tr = self.trabajos.get(msg.get("trabajo"))
+                    st = tr["subtareas"].get(id_st) if tr else None
+
+                    if tr and tr.get("m2") and st:
+                        if st["estado"] in FINALES_ST or st["estado"] == "retrying":
+                            self.despachadas.discard(id_st)
+                            st["despachada"] = False
+                            self._guardar(tr)
+                            self._despachar()
+
+            # Conservar el registro de trabajadores.
+            self._guardar_registro()
+            # Repetir la cancelación si un worker comenzó
+            # una subtarea perteneciente a un trabajo cancelado.
+            if recancelar:
+                canal.basic_publish(
+                    exchange=EXCHANGE_CONTROL,
+                    routing_key="",
+                    body=json.dumps({"cancelar": recancelar}).encode()
+                )
+        except Exception as e:  # noqa: BLE001
+            print(
+                f"[plataforma] error con un resultado: "
+                f"{type(e).__name__}: {e}"
+            )
+
+        canal.basic_ack(delivery_tag=metodo.delivery_tag)
     # ============================================================ crear / cancelar
     def crear(self, caso: str, bloques: int, con_adjuntos: bool) -> dict:
         if not self.configurado:
@@ -545,23 +619,41 @@ class Plataforma:
               "creado": ahora, "iniciado": None, "terminado": None,
               "bloques": len(rangos), "adjuntos": len(subtareas) - len(rangos),
               "subtareas": subtareas, "resultado": None}
+
         anteriores = previos(mensajes)
         publicar = [self._mensaje(tr, st, mensajes, anteriores) for st in subtareas.values()]
+
+        # Nuevo flujo de M2
+        if self.m2_activo:
+            tr["m2"] = True
+
+            with self.lock:
+                self.trabajos[tr["id"]] = tr
+                self._guardar(tr)
+                self._registrar_pendientes(tr, mensajes, anteriores)
+                self._despachar()
+
+            return self.detalle(tr["id"])
         # Registrar ANTES de publicar: un worker rápido puede responder antes de que
         # _publicar() regrese, y su resultado se descartaría por "trabajo desconocido".
         with self.lock:
             self.trabajos[tr["id"]] = tr
             self._guardar(tr)
+
         try:
             self._publicar(publicar)
         except Exception as e:  # noqa: BLE001
             with self.lock:
                 self.trabajos.pop(tr["id"], None)
                 (self.dir / f"{tr['id']}.json").unlink(missing_ok=True)
-            raise ErrorTrabajo(f"No se pudieron encolar las sub-tareas: {type(e).__name__}: {e}") from e
+            raise ErrorTrabajo(
+                f"No se pudieron encolar las sub-tareas: {type(e).__name__}: {e}"
+            ) from e
+
         extra = f" + {tr['adjuntos']} adjuntos" if tr["adjuntos"] else ""
         print(f"[plataforma] {tr['id']}: {caso} dividido en {len(rangos)} bloques{extra}")
         return self.detalle(tr["id"])
+
 
     def _mensaje(self, tr: dict, st: dict, mensajes: list, anteriores: dict) -> tuple[str, dict, int]:
         base = {"trabajo": tr["id"], "subtarea": st["id"], "tipo": st["tipo"]}
@@ -589,6 +681,12 @@ class Plataforma:
             for st in tr["subtareas"].values():
                 if st["estado"] not in FINALES_ST:
                     st["estado"], st["fin"] = "cancelled", time.time()
+                # M2: eliminar subtareas canceladas del planificador.
+                if tr.get("m2"):
+                    self.planificador.cancelar(st["id"])
+                    self.despachadas.discard(st["id"])
+                    self.reservas.pop(st["id"], None)
+
             self._guardar(tr)
         try:   # los workers descartan lo que tomen de este trabajo y abortan lo que estén haciendo
             self._publicar([("", {"cancelar": id_}, 10)], exchange=EXCHANGE_CONTROL)
@@ -613,42 +711,119 @@ class Plataforma:
                 (self.dir / f"{i}.json").unlink(missing_ok=True)
         return len(ids)
 
+
     def reanudar(self, id_: str) -> dict:
-        """Retoma un procesamiento cancelado, fallido o parcial: conserva lo que ya terminó bien y vuelve a
-        encolar SOLO las sub-tareas canceladas o fallidas. Antes avisa a los workers que el trabajo ya no está
-        cancelado (si no, descartarían sus sub-tareas)."""
+        """Reanuda un trabajo conservando las subtareas completadas."""
         with self.lock:
             tr = self.trabajos.get(id_)
             if not tr:
                 raise ErrorTrabajo("Trabajo no encontrado")
+
             if tr["estado"] not in FINALES_TR or tr["estado"] == "completed":
-                raise ErrorTrabajo("Solo se puede reanudar un procesamiento cancelado o con sub-tareas fallidas")
-            pendientes = [st for st in tr["subtareas"].values() if st["estado"] in ("cancelled", "failed")]
+                raise ErrorTrabajo(
+                    "Solo se puede reanudar un procesamiento cancelado "
+                    "o con sub-tareas fallidas"
+                )
+
+            pendientes = [
+                st for st in tr["subtareas"].values()
+                if st["estado"] in ("cancelled", "failed")
+            ]
+
             if not pendientes:
                 raise ErrorTrabajo("No hay sub-tareas para reanudar")
+
+            es_m2 = bool(tr.get("m2"))
+
+            if es_m2 and any(
+                st.get("publicacion_incierta")
+                for st in tr["subtareas"].values()
+            ):
+                raise ErrorTrabajo(
+                    "M2 tiene publicaciones inciertas. "
+                    "Es necesario conciliarlas antes de reanudar."
+                )
+
         mensajes, _ = self.cargar(tr["caso"])
         anteriores = previos(mensajes)
+
+        # Avisar a los workers que el trabajo deja de estar cancelado.
+        try:
+            self._publicar(
+                [("", {"reanudar": id_}, 10)],
+                exchange=EXCHANGE_CONTROL
+            )
+        except Exception as e:
+            raise ErrorTrabajo(
+                f"No se pudo avisar la reanudación: "
+                f"{type(e).__name__}: {e}"
+            ) from e
+
         with self.lock:
             for st in pendientes:
-                st.update(estado="pendiente", worker=None, error=None, intentos=0, inicio=None, fin=None,
-                          duracion=None, resultado=None)
-            tr.update(estado="queued", terminado=None, resultado=None, reanudaciones=tr.get("reanudaciones", 0) + 1)
+                st.update(
+                    estado="pendiente",
+                    worker=None,
+                    error=None,
+                    intentos=0,
+                    inicio=None,
+                    fin=None,
+                    duracion=None,
+                    resultado=None,
+                )
+                if es_m2:
+                    st["despachada"] = False
+                    st["publicacion_incierta"] = False
+                    st["error_publicacion"] = None
+                    self.despachadas.discard(st["id"])
+                    self.reservas.pop(st["id"], None)
+            tr.update(
+                estado="queued",
+                terminado=None,
+                resultado=None,
+                reanudaciones=tr.get("reanudaciones", 0) + 1
+            )
             self._guardar(tr)
-        try:
-            self._publicar([("", {"reanudar": id_}, 10)], exchange=EXCHANGE_CONTROL)
-            self._publicar([self._mensaje(tr, st, mensajes, anteriores) for st in pendientes])
-        except Exception as e:  # noqa: BLE001
-            with self.lock:
-                for st in pendientes:
-                    st.update(estado="failed", error=f"No se pudo reanudar: {type(e).__name__}: {e}", fin=time.time())
-                self._barrera(tr)
-                self._guardar(tr)
-            raise ErrorTrabajo(f"No se pudo reanudar: {type(e).__name__}: {e}") from e
-        with self.lock:
+            if es_m2:
+                # Nunca saltarse el planificador para trabajos M2.
+                if self.m2_activo:
+                    self._registrar_pendientes(
+                        tr, mensajes, anteriores
+                    )
+                    self._despachar()
+            else:
+                try:
+                    self._publicar([
+                        self._mensaje(tr, st, mensajes, anteriores)
+                        for st in pendientes
+                    ])
+                except Exception as e:
+                    for st in pendientes:
+                        st.update(
+                            estado="failed",
+                            error=(
+                                "No se pudo reanudar: "
+                                f"{type(e).__name__}: {e}"
+                            ),
+                            fin=time.time()
+                        )
+                    self._barrera(tr)
+                    self._guardar(tr)
+                    raise ErrorTrabajo(
+                        f"No se pudo reanudar: {e}"
+                    ) from e
             self._barrera(tr)
             self._guardar(tr)
-            self._alerta("info", tr, f"procesamiento reanudado: {len(pendientes)} sub-tarea(s) vuelven a la cola")
-        print(f"[plataforma] {id_} reanudado: {len(pendientes)} sub-tareas")
+            self._alerta(
+                "info",
+                tr,
+                f"procesamiento reanudado: {len(pendientes)} "
+                "sub-tarea(s) vuelven a la cola"
+            )
+        print(
+            f"[plataforma] {id_} reanudado: "
+            f"{len(pendientes)} sub-tareas"
+        )
         return self.detalle(id_)
 
     def cancelar_todos(self) -> dict:
@@ -807,15 +982,42 @@ class Plataforma:
         self._guardar(tr)
         return None
 
+
     def _reencolar(self, id_tr: str, id_st: str) -> None:
         with self.lock:
             tr = self.trabajos.get(id_tr)
             st = tr["subtareas"].get(id_st) if tr else None
             if not st or st["estado"] != "retrying" or tr["estado"] == "cancelled":
                 return
+            if tr.get("m2") and self.m2_activo:
+                try:
+                    mensajes, _ = self.cargar(tr["caso"])
+                    st.update(
+                        estado="pendiente",
+                        worker=None,
+                        despachada=False,
+                        publicacion_incierta=False
+                    )
+                    self.despachadas.discard(id_st)
+                    self._barrera(tr)
+                    self._guardar(tr)
+
+                    self._registrar_pendientes(
+                        tr, mensajes, previos(mensajes)
+                    )
+                    self._despachar()
+                except Exception as e:
+                    print(
+                        f"[M2] error preparando reintento "
+                        f"{id_st}: {type(e).__name__}: {e}"
+                    )
+                return
+        # Comportamiento original para trabajos sin M2.
         try:
             mensajes, _ = self.cargar(tr["caso"])
-            self._publicar([self._mensaje(tr, st, mensajes, previos(mensajes))])
+            self._publicar([
+                self._mensaje(tr, st, mensajes, previos(mensajes))
+            ])
             with self.lock:
                 if st["estado"] == "retrying":
                     st["estado"] = "pendiente"
@@ -823,18 +1025,48 @@ class Plataforma:
                     self._guardar(tr)
         except Exception as e:  # noqa: BLE001
             with self.lock:
-                st.update(estado="failed", error=f"No se pudo re-encolar: {e}", fin=time.time())
+                st.update(
+                    estado="failed",
+                    error=f"No se pudo re-encolar: {e}",
+                    fin=time.time()
+                )
                 self._barrera(tr)
                 self._guardar(tr)
 
+
     def _reanudar(self) -> None:
-        """Tras arrancar: los reintentos que esperaban en un temporizador se perdieron con
-        el proceso anterior; se vuelven a encolar. Lo pendiente sigue en RabbitMQ."""
+        """Recupera reintentos y reconstruye pendientes de M2."""
         with self.lock:
-            pendientes = [(tr["id"], st["id"]) for tr in self.trabajos.values() if tr["estado"] not in FINALES_TR
-                          for st in tr["subtareas"].values() if st["estado"] == "retrying"]
+            pendientes = [
+                (tr["id"], st["id"])
+                for tr in self.trabajos.values()
+                if tr["estado"] not in FINALES_TR
+                for st in tr["subtareas"].values()
+                if st["estado"] == "retrying"
+            ]
+        if self.m2_activo:
+            for tr in sorted(
+                self.trabajos.values(),
+                key=lambda trabajo: trabajo["creado"]
+            ):
+                if not tr.get("m2") or tr["estado"] in FINALES_TR:
+                    continue
+                try:
+                    mensajes, _ = self.cargar(tr["caso"])
+                    with self.lock:
+                        self._registrar_pendientes(
+                            tr, mensajes, previos(mensajes)
+                        )
+                except Exception as e:
+                    print(
+                        f"[M2] no se pudo recuperar "
+                        f"{tr['id']}: {type(e).__name__}: {e}"
+                    )
+            with self.lock:
+                self._despachar()
         for id_tr, id_st in pendientes:
             self._reencolar(id_tr, id_st)
+
 
     def _barrera(self, tr: dict) -> None:
         """Barrier/join: solo cuando TODAS las sub-tareas terminaron se cierra el trabajo."""
