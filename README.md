@@ -29,7 +29,7 @@ La plataforma importa conversaciones exportadas de WhatsApp (texto, fotos y nota
 | **Importar chats** | Exportaciones de Android (12 h y 24 h) e iOS, en `.txt` o `.zip`, con o sin archivos adjuntos. Se pueden subir desde la web, pegar el texto o **importar directo desde un teléfono Android por USB** (ADB). Cada adjunto queda registrado con su SHA-256. |
 | **Dashboard** | Panorama general de todos los chats, búsqueda, filtros por fecha, carpetas, estadísticas por chat (participantes, horarios, palabras, tiempos de respuesta) y una pestaña global de **Riesgos** con un enlace a cada mensaje marcado. |
 | **Procesamiento distribuido** | Divide cada chat en bloques más una sub-tarea por adjunto. Usa colas con prioridad, ACK después del resultado, reintentos con espera creciente, cancelación y cierre por barrera (*barrier/join*). Los workers mandan latidos con su CPU y memoria. El estado de cada trabajo se guarda en disco y sobrevive a un reinicio del coordinador. |
-| **Detección (gratuita y local)** | **Texto:** reglas de amenaza y de actividad ilícita, lista de insultos y el modelo pysentimiento/RoBERTuito (odio y agresividad). **Imagen:** YOLOv8 entrenado con Open Images V7 (armas). **Audio:** faster-whisper transcribe y el texto pasa por el mismo detector. Cada hallazgo indica por qué se marcó y su severidad (alta: amenazas, armas y actividades ilícitas; media: agresión, odio e insultos). |
+| **Detección (gratuita y local)** | **Texto:** modelo de lenguaje local con **Ollama (qwen2.5:3b)**, guiado por un contexto escrito por el equipo (`distribuido/worker/contexto_ollama.md`) con las categorías, la severidad y jerga de Costa Rica. Detector **combinado**: RoBERTuito (HuggingFace Transformers), las reglas y una pasada rápida de Ollama **proponen** candidatos, y Ollama **revisa** cada uno por separado con el contexto del chat. Los nodos sin Ollama usan el detector anterior (reglas + pysentimiento/RoBERTuito). Comparación entre ambos en [docs/mediciones/texto_detector.md](docs/mediciones/texto_detector.md). **Imagen:** YOLOv8 entrenado con Open Images V7 (armas). **Audio:** faster-whisper transcribe y el texto pasa por el mismo detector. Cada hallazgo indica por qué se marcó y su severidad (alta: amenazas, armas y actividades ilícitas; media: agresión, odio e insultos). |
 | **Evaluación** | Precisión, exhaustividad, F1 y WER contra el *ground truth* del dataset generado. |
 
 ## Arquitectura
@@ -47,6 +47,7 @@ La plataforma importa conversaciones exportadas de WhatsApp (texto, fotos y nota
         ▼            ▼            ▼
     worker 1      worker 2     worker 3     distribuido/worker/  (Python o Docker con --memory)
     supervisor.py → worker.py → detectores.py · memoria.py (admisión M1)
+                                  └─ Ollama (localhost:11434) clasifica el texto
 ```
 
 ## Módulos de Sistemas Operativos
@@ -68,6 +69,10 @@ La guía completa, con Windows, el dataset y problemas frecuentes, está en **[d
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
+# 1b. Ollama, en cada computadora que vaya a clasificar texto (https://ollama.com/download)
+curl -fsSL https://ollama.com/install.sh | sh
+ollama pull qwen2.5:3b
+
 # 2. Credenciales (nunca en el código)
 cp distribuido/config.env.ejemplo distribuido/config.env   # llenar RABBIT_URL (o RABBIT_USER/RABBIT_PASS) y WORKER_TOKEN
 
@@ -87,8 +92,10 @@ docker build -f distribuido/worker/Dockerfile -t wa-worker .
 docker run -d --name wa-worker-2 --read-only --tmpfs /tmp --memory=3g --memory-swap=3g \
   -e RABBIT_HOST=<IP del coordinador> -e RABBIT_USER=... -e RABBIT_PASS=... -e WORKER_TOKEN=... \
   -e COORDINADOR_URL=http://<IP del coordinador>:8101 -e WORKER_ID=worker-2 \
-  -v wa_modelos:/tmp/modelos wa-worker
+  -v wa_modelos:/tmp/modelos --add-host=host.docker.internal:host-gateway \
+  -e OLLAMA_URL=http://host.docker.internal:11434 wa-worker
 ```
+También hay una imagen lista, construida por GitHub Actions en cada push: `ghcr.io/sharonblanco/wa-worker:latest`.
 Para saber cuántos workers caben en un nodo: `python distribuido/worker/memoria.py --nodo 12g`.
 
 ### Variables útiles
@@ -97,6 +104,10 @@ Para saber cuántos workers caben en un nodo: `python distribuido/worker/memoria
 | `WORKER_POOLS` | Qué colas atiende el worker (`texto,imagen,audio,adjuntos`) |
 | `WORKER_CONCURRENCIA` | Sub-tareas simultáneas que se piden (la admisión de memoria puede bajarlas) |
 | `WA_DETECCION=0` | Worker sin modelos: solo estadísticas y verificación |
+| `WA_TEXTO_MOTOR` | `auto` (Ollama si corre en el nodo; si no, el detector anterior), `ollama` o `pysentimiento` |
+| `OLLAMA_URL` · `OLLAMA_MODELO` | Dónde está Ollama (`http://localhost:11434`) y qué modelo usa (`qwen2.5:3b`) |
+| `OLLAMA_REVISAR=0` | Desactiva la revisión individual (más rápido, más falsas alarmas) |
+| `OLLAMA_MANTENER` | Cuánto queda cargado el modelo sin uso (`3m`) |
 | `WA_DISPOSITIVO` | `auto`, `cpu` o `cuda` |
 | `WA_WHISPER_MODELO` | `auto` (medium en GPU, small en CPU) o un tamaño fijo |
 | `WA_ADMISION=0` | Desactiva el control de admisión (solo para provocar OOM en pruebas) |
@@ -136,7 +147,8 @@ exportar_whatsapp.py   exportación automática desde un teléfono Android (uiau
 | [docs/modulo-M1-memoria.md](docs/modulo-M1-memoria.md) | Ficha de evidencia de M1 |
 | [docs/modulo-M3-almacenamiento.md](docs/modulo-M3-almacenamiento.md) | Ficha de evidencia de M3 |
 | [docs/modulo-M5-heterogeneo.md](docs/modulo-M5-heterogeneo.md) | Ficha de evidencia de M5 |
-| [docs/mediciones/](docs/mediciones/) | Mediciones de los detectores (texto, YOLO, Whisper) y de M1 |
+| [docs/mediciones/](docs/mediciones/) | Mediciones de los detectores (texto, YOLO, Whisper) y de M1, M3 y M5 |
+| [docs/mediciones/texto_detector.md](docs/mediciones/texto_detector.md) | Detector de texto: Ollama frente al detector anterior, con los mismos mensajes |
 | [docs/dataset.md](docs/dataset.md) | Dataset: fuentes, licencias y ground truth |
 | [docs/reutilizacion.md](docs/reutilizacion.md) | Qué se reutilizó del I Proyecto |
 | [docs/responsabilidades.md](docs/responsabilidades.md) | Matriz de responsabilidades |

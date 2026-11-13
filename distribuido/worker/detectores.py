@@ -239,14 +239,29 @@ OLLAMA_LOTE = int(config("OLLAMA_LOTE", "25"))          # mensajes por consulta 
 OLLAMA_MANTENER = config("OLLAMA_MANTENER", "3m")
 CONTEXTO_OLLAMA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "contexto_ollama.md")
 _CATEGORIAS_LLM = ["amenaza", "ilicito", "odio", "agresion", "insulto"]
+_MULETILLAS = {"mierda", "puta", "puto", "carajo", "joder", "verga", "hijueputa", "mae", "playa"}
+_ORDEN_CAT = ["normal", "insulto", "agresion", "odio", "ilicito", "amenaza"]     # de menos a más grave
 _ETIQUETAS = _CATEGORIAS_LLM + ["normal"]   # se le pide una etiqueta para CADA mensaje (si no, se salta algunos)
+# Dos pasadas (un modelo de 3B se equivoca si tiene que explicar 25 mensajes a la vez):
+#   1) por lotes, SOLO la etiqueta de cada mensaje: rápido (pocas palabras que generar) y con alta exhaustividad
+#   2) cada mensaje marcado (≈5 %) se revisa SOLO, con los anteriores como contexto: el modelo explica qué dice
+#      y si de verdad hay agresión; si no, se descarta. Esto elimina falsos positivos como
+#      "Necesito la factura de ayer → ilícito".
 _ESQUEMA = {"type": "object", "required": ["resultados"], "properties": {"resultados": {"type": "array", "items": {
-    # el motivo va ANTES de la categoría: el modelo escribe primero qué dice el mensaje y después decide
-    # (con la categoría primero, a veces elegía una y luego justificaba "desconexión de internet")
-    "type": "object", "required": ["n", "motivo", "categoria", "severidad"],
-    "properties": {"n": {"type": "integer"}, "motivo": {"type": "string"},
-                   "categoria": {"type": "string", "enum": _ETIQUETAS},
-                   "severidad": {"type": "string", "enum": ["alta", "media", "ninguna"]}}}}}}
+    "type": "object", "required": ["n", "categoria"],
+    "properties": {"n": {"type": "integer"}, "categoria": {"type": "string", "enum": _ETIQUETAS}}}}}}
+_ESQUEMA_REVISION = {"type": "object", "required": ["que_dice", "categoria", "severidad", "motivo"],
+                     "properties": {"que_dice": {"type": "string"},
+                                    "categoria": {"type": "string", "enum": _ETIQUETAS},
+                                    "severidad": {"type": "string", "enum": ["alta", "media", "ninguna"]},
+                                    "motivo": {"type": "string"}}}
+OLLAMA_REVISAR = config("OLLAMA_REVISAR", "1") not in ("0", "no", "false")
+# Quién propone los candidatos que Ollama revisa (además de las reglas):
+#   modelo  RoBERTuito: rápido (~40 ms/mensaje); Ollama solo revisa lo marcado
+#   ollama  el mismo Ollama en una pasada por lotes (más lento; no necesita pysentimiento)
+#   ambos   (por defecto) RoBERTuito y la pasada por lotes de Ollama: mejor F1 medido, lo más lento
+OLLAMA_CANDIDATOS = config("OLLAMA_CANDIDATOS", "ambos").lower()   # "ambos": mejor F1 medido (texto_detector.md)
+UMBRAL_CANDIDATO = float(config("WA_UMBRAL_CANDIDATO", "0.4"))   # más bajo que 0.5: la revisión filtra el exceso
 _ollama_ok: dict = {}
 
 
@@ -276,49 +291,98 @@ def motor_texto() -> str:
     return "ollama" if _ollama_ok["disponible"] else "pysentimiento"
 
 
-def _clasificar_ollama(textos: list[str]) -> list[list[dict]]:
+def _chat_ollama(contexto: str, pedido: str, esquema: dict) -> dict:
     import json as _json
+    try:
+        r = _pedir_ollama("/api/chat", {
+            "model": OLLAMA_MODELO, "stream": False, "format": esquema, "keep_alive": OLLAMA_MANTENER,
+            "options": {"temperature": 0},
+            "messages": [{"role": "system", "content": contexto}, {"role": "user", "content": pedido}]})
+        return _json.loads(r["message"]["content"])
+    except (OSError, ValueError, KeyError) as e:
+        raise DeteccionNoDisponible(f"Ollama no respondió bien: {type(e).__name__}: {e}") from e
+
+
+def _severidad(categoria: str, sugerida: str | None) -> str:
+    """Criterio del equipo: ilícito siempre alta; odio e insulto siempre media (machismo, homofobia,
+    maltrato verbal). En amenaza y agresión decide el modelo: alta si hay riesgo o violencia física
+    (muerte, golpiza, "le pegué hasta dejarla morada", extorsión), media si no ("le voy a contar a tu mamá",
+    ciberbullying)."""
+    if categoria in ("amenaza", "agresion") and sugerida in ("alta", "media"):
+        return sugerida
+    return SEVERIDAD[categoria]
+
+
+def _clasificar_ollama(textos: list[str]) -> list[list[dict]]:
     with open(CONTEXTO_OLLAMA, encoding="utf-8") as f:
         contexto = f.read()
     if "ollama" not in _cargas:                       # para el panel de modelos del worker
         _cargas["ollama"] = {"modelo": OLLAMA_MODELO, "url": OLLAMA_URL, "dispositivo": "servidor Ollama"}
-    salida: list[list[dict]] = [[] for _ in textos]
-    for ini in range(0, len(textos), OLLAMA_LOTE):
-        lote = textos[ini:ini + OLLAMA_LOTE]
-        lista = "\n".join(f"{j + 1}. {t.replace(chr(10), ' ')[:600]}" for j, t in enumerate(lote))
-        try:
-            r = _pedir_ollama("/api/chat", {
-                "model": OLLAMA_MODELO, "stream": False, "format": _ESQUEMA, "keep_alive": OLLAMA_MANTENER,
-                "options": {"temperature": 0},
-                "messages": [{"role": "system", "content": contexto},
-                             {"role": "user", "content": f"Mensajes:\n{lista}"}]})
-            datos = _json.loads(r["message"]["content"])
-        except (OSError, ValueError, KeyError) as e:
-            raise DeteccionNoDisponible(f"Ollama no respondió bien: {type(e).__name__}: {e}") from e
+    limpio = [t.replace("\n", " ")[:600] for t in textos]
+    marcados: dict[int, str] = {}
+    if OLLAMA_CANDIDATOS in ("modelo", "ambos"):
+        # ---- pasada 1 (combinado): RoBERTuito propone (rápido, ~26 ms/mensaje y corre bien en CPU)
+        modelo = _cargar("pysentimiento hate_speech", _modelo_odio)
+        salidas = modelo.predict(textos)
+        for i, x in enumerate(salidas if isinstance(salidas, list) else [salidas]):
+            p = x.probas
+            if p.get("hateful", 0) >= UMBRAL_CANDIDATO:
+                marcados[i] = "odio"
+            elif p.get("aggressive", 0) >= UMBRAL_CANDIDATO:
+                marcados[i] = "agresion"
+    # ---- pasada 1 (solo Ollama): etiqueta de cada mensaje, por lotes
+    for ini in (range(0, len(limpio), OLLAMA_LOTE) if OLLAMA_CANDIDATOS in ("ollama", "ambos") else []):
+        lote = limpio[ini:ini + OLLAMA_LOTE]
+        lista = "\n".join(f"{j + 1}. {t}" for j, t in enumerate(lote))
+        datos = _chat_ollama(contexto, "Clasificá cada uno de estos mensajes. Respondé con JSON: una entrada por "
+                             "CADA mensaje (n = su número) con su categoría (\"normal\" si no hay nada).\n\n"
+                             f"Mensajes:\n{lista}", _ESQUEMA)
         for x in datos.get("resultados", []):
             j = x.get("n", 0) - 1
             if 0 <= j < len(lote) and x.get("categoria") in _CATEGORIAS_LLM:
-                # Severidad (criterio del equipo): ilícito siempre alta; odio, agresión e insulto siempre media
-                # (machismo, ciberbullying, maltrato verbal). Solo en las amenazas decide el modelo: alta si hay
-                # riesgo físico (muerte, golpiza, extorsión), media si no ("le voy a contar a tu mamá").
-                # (El modelo 3B no es consistente si se le deja decidir en todas las categorías.)
-                sev = SEVERIDAD[x["categoria"]]
-                if x["categoria"] == "amenaza" and x.get("severidad") == "media":
-                    sev = "media"
-                salida[ini + j].append({"categoria": x["categoria"], "severidad": sev, "puntaje": 0.9,
-                                        "motivo": f"Ollama: {str(x.get('motivo', '')).strip()[:200]}"})
+                marcados.setdefault(ini + j, x["categoria"])
+    # ---- candidatos de las reglas: no deciden, solo proponen. Así lo obvio ("coca", "idiota") no se escapa
+    # aunque la pasada 1 no lo marque, y lo que las reglas marcaban de más ("qué mierda de día") lo descarta
+    # la revisión con contexto.
+    por_regla: dict[int, str] = {}
+    for i, hs in enumerate(_reglas(textos)):
+        # groserías de muletilla ("qué mierda de día", "puta, se me olvidó"): no se proponen; si van dirigidas
+        # a alguien, la pasada 1 ya las marca
+        hs = [h for h in hs if not (h["categoria"] == "insulto" and _sin_tildes(h["motivo"]).split("«")[-1].rstrip("»")
+                                     in _MULETILLAS)]
+        if hs:
+            por_regla[i] = max((h["categoria"] for h in hs), key=lambda c: _ORDEN_CAT.index(c))
+            marcados.setdefault(i, por_regla[i])
+    salida: list[list[dict]] = [[] for _ in textos]
+    # ---- pasada 2: revisar cada marcado por separado, con los mensajes anteriores como contexto
+    for i, cat in sorted(marcados.items()):
+        if not OLLAMA_REVISAR:
+            salida[i].append({"categoria": cat, "severidad": SEVERIDAD[cat], "puntaje": 0.7,
+                              "motivo": "Ollama: marcado (sin revisión)"})
+            continue
+        previos = "\n".join(f"- {t}" for t in limpio[max(0, i - 3):i]) or "(ninguno)"
+        r = _chat_ollama(contexto,
+                         f"Mensajes anteriores del chat (solo como contexto):\n{previos}\n\n"
+                         f"Mensaje a revisar: «{limpio[i]}»\n\n"
+                         f"Una primera lectura rápida lo marcó como \"{cat}\", pero puede estar equivocada. "
+                         "Revisalo con cuidado: primero explicá con tus palabras qué dice el mensaje (que_dice), "
+                         "después elegí la categoría: amenaza (incluye intimidación), ilicito (cualquier delito: "
+                         "drogas aunque sea para consumo propio, armas, robos…), odio, agresion (incluye violencia "
+                         "física y ciberbullying), insulto (dirigido a alguien) o normal (mensaje cotidiano, queja, "
+                         "broma o pregunta sin nada de lo anterior). Al final, la severidad y un motivo corto.",
+                         _ESQUEMA_REVISION)
+        final = r.get("categoria")
+        # las reglas de amenaza e ilícito son precisas: si el modelo confirma que hay algo, se respeta esa categoría
+        if por_regla.get(i) in ("amenaza", "ilicito") and _ORDEN_CAT.index(por_regla[i]) > _ORDEN_CAT.index(final or "normal"):
+            final = por_regla[i]
+        if final in _CATEGORIAS_LLM:     # (un campo "¿hay que marcarlo?" sí/no contradecía su propia explicación)
+            salida[i].append({"categoria": final, "severidad": _severidad(final, r.get("severidad")), "puntaje": 0.9,
+                              "motivo": f"Ollama: {str(r.get('motivo') or r.get('que_dice') or '').strip()[:200]}"})
     return salida
 
 
-def analizar_textos(textos: list[str], usar_modelo: bool | None = None) -> list[list[dict]]:
-    """Para cada texto, la lista de hallazgos (vacía si no hay nada).
-    usar_modelo=None → según WA_TEXTO_MODELO (0 = solo reglas e insultos, sin cargar el modelo)."""
-    if usar_modelo is None:
-        usar_modelo = _forzado.get("texto_modelo", config("WA_TEXTO_MODELO", "1") not in ("0", "no", "false"))
-    if usar_modelo and textos and motor_texto() == "ollama":
-        # Con Ollama el modelo decide todo con el contexto de la conversación: las reglas y la lista de
-        # insultos (rígidas) no se usan. Quedan solo para los nodos sin Ollama (pysentimiento).
-        return _clasificar_ollama(textos)       # cada hallazgo ya trae la severidad que eligió el modelo
+def _reglas(textos: list[str]) -> list[list[dict]]:
+    """Reglas de amenaza e ilícito y lista de insultos (sin modelo)."""
     resultados: list[list[dict]] = [[] for _ in textos]
     for i, t in enumerate(textos):
         limpio = _sin_tildes(t)
@@ -336,6 +400,19 @@ def analizar_textos(textos: list[str], usar_modelo: bool | None = None) -> list[
         m = _RE_INSULTO.search(limpio)
         if m:
             resultados[i].append({"categoria": "insulto", "motivo": f"palabra: «{m.group(0)}»", "puntaje": 1.0})
+    return resultados
+
+
+def analizar_textos(textos: list[str], usar_modelo: bool | None = None) -> list[list[dict]]:
+    """Para cada texto, la lista de hallazgos (vacía si no hay nada).
+    usar_modelo=None → según WA_TEXTO_MODELO (0 = solo reglas e insultos, sin cargar el modelo)."""
+    if usar_modelo is None:
+        usar_modelo = _forzado.get("texto_modelo", config("WA_TEXTO_MODELO", "1") not in ("0", "no", "false"))
+    if usar_modelo and textos and motor_texto() == "ollama":
+        # Con Ollama decide el modelo, con el contexto de la conversación. Las reglas y la lista de insultos
+        # solo PROPONEN candidatos que el modelo revisa (no marcan nada por sí solas).
+        return _clasificar_ollama(textos)       # cada hallazgo ya trae la severidad que eligió el modelo
+    resultados = _reglas(textos)
 
     if usar_modelo and textos:
         modelo = _cargar("pysentimiento hate_speech", _modelo_odio)

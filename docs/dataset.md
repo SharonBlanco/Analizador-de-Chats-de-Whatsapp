@@ -74,7 +74,7 @@ Las cifras exactas de cada ejecución, como positivos por categoría, tamaño to
 ## 5. Estado de las fuentes y cifras finales
 
 - **OffendES:** descargado (30 416 comentarios: train 16 710, validation 100, test 13 606; 4 818 ofensivos `OFP`/`OFG`).
-- **HatEval:** no se usa. OffendES cubre la categoría *ofensivo*, y el detector de odio (pysentimiento) ya está entrenado con HatEval, así que no se evalúa con sus mismos datos.
+- **HatEval:** no se usa. OffendES cubre la categoría *ofensivo*, y el detector de odio anterior (pysentimiento, hoy alternativa del detector con Ollama) ya está entrenado con HatEval, así que no se evalúa con sus mismos datos.
 - **Videos:** descargados (Big Buck Bunny, Elephants Dream, Sintel y Tears of Steel, con licencia CC BY).
 - **Grabaciones del equipo:** 8 notas de voz con amenazas, actividad ilícita e insultos, en `fuentes_dataset/grabaciones/` con su `grabaciones.csv`.
 - **Uso de IA** en las plantillas y los positivos sintéticos: registrado en `docs/bitacora_ia.md` (entrada 4).

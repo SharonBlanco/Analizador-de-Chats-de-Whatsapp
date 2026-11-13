@@ -9,9 +9,9 @@
   - **depurar:** encontrar errores de instalación, de configuración y de ejecución.
 - **Qué decidimos y validamos nosotras:**
   - **El uso de la aplicación y sus componentes:** qué hace la plataforma (importar chats, detectar agresiones en texto, imagen y audio, clasificarlas por severidad, mostrarlas en el dashboard), qué severidad tiene cada tipo de agresión, qué datos se usan y qué no (nunca chats reales de terceros).
-  - **Las herramientas:** probamos las que propuso la IA y medimos su eficiencia antes de quedarnos con ellas. Por ejemplo, comparamos tamaños de YOLO y de Whisper y los umbrales del detector de texto (ver `docs/mediciones/`).
+  - **Las herramientas:** probamos las que propuso la IA y medimos su eficiencia antes de quedarnos con ellas. Por ejemplo, comparamos tamaños de YOLO y de Whisper y los umbrales del detector de texto (ver `docs/mediciones/`). La idea de cambiar el detector de texto por un modelo de lenguaje local (Ollama) fue nuestra; la IA lo implementó y lo comparó con el detector anterior, y con esos datos decidimos quedarnos con Ollama (entrada 12).
   - **Las mediciones:** definimos qué medir en cada módulo a partir de lo que pide el enunciado y de las ideas de la IA. La IA escribió el código de los scripts de medición; nosotras los ejecutamos, revisamos que los números tuvieran sentido, pedimos correcciones cuando no lo tenían (ver los errores documentados) e interpretamos los resultados.
-  - **La infraestructura:** probamos otras opciones para los workers en la nube (máquinas virtuales en Azure, y evaluamos Oracle Cloud y Firebase). Por recomendación del profesor nos quedamos con **Google Colab**.
+  - **La infraestructura:** probamos otras opciones para los workers en la nube (máquinas virtuales en Azure, y evaluamos Oracle Cloud y Firebase). Por recomendación del profesor nos quedamos con **Google Colab**, y además usamos una máquina virtual de **Azure for Students** para fotos, adjuntos y audios.
 - Todo el código se ejecutó y se probó antes de incorporarlo. Ninguna salida de la IA se aceptó sin correrla.
 
 > Cada integrante registra las consultas de los componentes de los que es responsable principal (ver `docs/responsabilidades.md`).
@@ -145,6 +145,18 @@
 - **Validado / corregido / descartado:** 
 - **Cómo se validó:** 
 
+### 12. Detector de texto con un modelo de lenguaje local (Ollama)
+- **Fecha · integrante:** semana 15 · Sharon Blanco
+- **Componente:** `distribuido/worker/detectores.py`, `distribuido/worker/contexto_ollama.md`, `distribuido/comparar_detectores.py`
+- **Propósito:** generar código y evaluar una alternativa propuesta por el equipo.
+- **Consulta resumida:** "Reemplazar el clasificador de texto por Ollama corriendo en local, con un archivo de contexto que le explique qué es cada categoría. Alta: amenazas de muerte, golpizas, drogas y cosas ilegales; media: ciberbullying, machismo y maltrato verbal."
+- **Resultado obtenido:** clasificación con Ollama (qwen2.5:3b) en dos pasadas, contexto con las categorías, la severidad y jerga de Costa Rica, instalación de Ollama en Colab y en Azure, y un script que compara los dos detectores con los mismos mensajes.
+- **Validado / corregido / descartado:**
+  - **Corregido:** ver los **errores 8, 9 y 10**. Los falsos positivos los encontramos revisando los hallazgos en el dashboard.
+  - **Severidad:** la definimos nosotras; como el modelo no la respetaba en todas las categorías, quedó fija para ilícito (alta), odio e insulto (media), y el modelo decide solo en amenaza y agresión.
+  - **Decisión:** con la comparación (`docs/mediciones/texto_detector.md`) vimos que Ollama da muchas menos falsas alarmas pero encuentra menos ofensas leves y es más lento. Le pedimos a la IA unir los dos detectores y medir dos variantes; elegimos la que juzgamos mejor (RoBERTuito y Ollama proponen, Ollama revisa), que los datos confirmaron: mejor F1 en OffendES de las cuatro opciones. El detector anterior queda como alternativa.
+- **Cómo se validó:** precisión, exhaustividad y F1 de los dos detectores con los mismos mensajes (chats sintéticos con ground truth y una muestra de OffendES), más frases de prueba escritas por nosotras.
+
 ---
 
 ## Errores e imprecisiones de la IA detectados por el equipo
@@ -158,3 +170,6 @@
 | 5 | M1 (medición) | La primera tabla de huellas decía que cargar el modelo de texto solo sumaba 32 MB, cuando en realidad usa ~940 MB. | El número no tenía sentido frente al tamaño del modelo (416 MB en disco). | Causa: los pesos se cargan con `mmap` y entran a la RAM recién en la primera inferencia (paginación por demanda). Se midieron dos inferencias para separar la memoria fija de la de trabajo. |
 | 6 | M3 (contrapresión) | La primera ráfaga fue demasiado liviana para mostrar diferencias, y el `Retry-After` pedía esperar 6 s cuando el lugar se liberaba en 0,1 s. Por eso "rechazar" salía como la peor política. | Los tiempos de la primera corrida no mostraban saturación y la política con límite era más lenta sin razón. | El `Retry-After` se calcula ahora con el tiempo medido de importación. La prueba se repitió con 120 clientes y chats con adjuntos. |
 | 7 | M5 (medición) | El script medía el texto "en CPU", pero pysentimiento **usaba la GPU igual**. CPU y GPU daban lo mismo (1,0×). | La fila "CPU" mostraba **688 MB de VRAM** usados. | Se oculta la GPU en las corridas de CPU (`CUDA_VISIBLE_DEVICES=""`). También se corrigió el worker: un nodo configurado como "solo CPU" ahora no toca la GPU. Con eso, el texto da 5,2× a favor de la GPU. |
+| 8 | Detector de texto (Ollama) | La primera versión clasificaba 25 mensajes juntos en una sola pasada y marcaba mensajes cotidianos: "Se fue el internet otra vez" y "Necesito la factura de ayer" como **actividad ilícita**. | Los vimos en los hallazgos del dashboard, con motivos sin sentido ("Referencia a desconexión de internet"). | Se pasó a dos pasadas: una rápida por lotes y una revisión individual de cada mensaje marcado, en la que el modelo explica primero qué dice el mensaje y después decide. Esos mensajes ahora salen normales. |
+| 9 | Detector de texto (Ollama) | En la revisión se le pedía al modelo un campo sí/no ("¿hay agresión?"), y se contradecía: explicaba "es un insulto dirigido a alguien" y respondía *no*. También descartaba drogas porque "no son agresión". Además, al quitar las reglas se dejaban de detectar casos obvios ("tengo un kilo de coca para vender"). | Al repetir las frases de prueba, las detecciones cambiaban de una versión a otra. | Se decide por la categoría que elige después de explicar, y las reglas y la lista de insultos volvieron como **candidatos** que el modelo revisa (sin las groserías de muletilla). El resultado quedó idéntico en dos corridas seguidas. |
+| 10 | Detector de texto (comparación) | La IA presentó primero el F1 de 0,91 de Ollama en las frases de prueba como mejora, pero esas mismas frases se habían usado para ajustar su contexto. | Al comparar con conjuntos que ningún detector había visto, el anterior ganaba en F1 (0,83 frente a 0,64 en los chats sintéticos). | En la documentación se marca ese resultado como optimista y la decisión se justifica con precisión y falsas alarmas, no con ese F1 (`docs/mediciones/texto_detector.md`). |
