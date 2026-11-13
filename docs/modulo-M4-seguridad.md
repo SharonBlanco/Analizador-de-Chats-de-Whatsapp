@@ -143,7 +143,20 @@ Resultados observados:
 - Cero reintentos.
 - Resultado id?ntico al procesamiento local.
 
-Esta prueba fue realizada antes de deshabilitar definitivamente el puerto AMQP sin TLS.
+Posteriormente se repiti? la prueba tras deshabilitar definitivamente el puerto AMQP sin TLS.
+
+Resultado posterior al cierre de `5672`:
+
+- Trabajo: `tr-a7471a0b`.
+- Estado: completado.
+- Tres mensajes distribuidos en dos bloques.
+- Dos de dos subtareas completadas.
+- Worker utilizado: `worker-Britany`.
+- Tiempo total: 22,55 segundos.
+- Cero reintentos y cero reasignaciones.
+- Resultado id?ntico al an?lisis local.
+
+Esta ejecuci?n confirm? la continuidad del procesamiento distribuido utilizando la configuraci?n AMQPS.
 
 ### 4.3. Transferencia HTTPS multibloque
 
@@ -192,7 +205,7 @@ No incluir contrase?as, tokens, claves privadas ni informaci?n personal de conve
 - Debe verificarse la recuperaci?n ante un fallo de registro de custodia posterior a una importaci?n cifrada, para evitar casos confirmados sin registro persistente.
 - El caso `piloto_auto_m4` fue importado antes de la correcci?n de custodia; no debe considerarse retrospectivamente registrado.
 - RabbitMQ cifra las comunicaciones mediante TLS, pero su configuraci?n actual `ssl_options.verify = verify_none` no requiere certificados de cliente. La autenticaci?n AMQP sigue dependiendo de credenciales.
-- Falta documentar una ejecuci?n completa de procesamiento distribuido del caso cifrado posterior al cierre de `5672`.
+
 
 ## 7. Conclusi?n
 
