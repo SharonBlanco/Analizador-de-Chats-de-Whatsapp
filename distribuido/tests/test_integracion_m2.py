@@ -147,6 +147,38 @@ class TestIntegracionM2(unittest.TestCase):
             "wa.control"
         )
 
+    def test_reintento_m2_vuelve_al_planificador(self):
+        """Una subtarea fallida debe volver al planificador."""
+        st = self.tr["subtareas"]["st-1"]
+        st["estado"] = "retrying"
+        st["despachada"] = True
+
+        self.p.planificador.cancelar("st-1")
+        self.p.planificador.cancelar("st-2")
+
+        self.p._despachar = Mock(return_value=False)
+        self.p._registrar_pendientes = Mock()
+
+        self.p._reencolar("tr-001", "st-1")
+
+        self.assertEqual(st["estado"], "pendiente")
+        self.assertFalse(st["despachada"])
+        self.p._registrar_pendientes.assert_called_once()
+        self.p._despachar.assert_called_once()
+
+    def test_recuperacion_reconstruye_pendientes_m2(self):
+        """El reinicio debe recuperar las subtareas M2 pendientes."""
+        self.p.planificador.cancelar("st-1")
+        self.p.planificador.cancelar("st-2")
+
+        self.p._registrar_pendientes = Mock()
+        self.p._despachar = Mock(return_value=False)
+
+        self.p._reanudar()
+
+        self.p._registrar_pendientes.assert_called_once()
+        self.p._despachar.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()
