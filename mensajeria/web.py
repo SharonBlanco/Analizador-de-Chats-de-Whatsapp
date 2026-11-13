@@ -733,6 +733,38 @@ def _m4_tls(servidor, certificado, clave):
     return servidor
 
 
+
+# M4: importaciones cifradas con activacion controlada
+import os as _m4_os
+from boveda import importar_cifrado as _m4_importar_cifrado, ErrorBoveda as _M4ErrorBoveda
+
+_m4_importar_original = importar
+
+def importar(*args, **kwargs):
+    """M4: cifra nuevas importaciones solo con WA_M4_CIFRAR_NUEVOS=1."""
+    if _m4_os.environ.get("WA_M4_CIFRAR_NUEVOS", "0") != "1":
+        return _m4_importar_original(*args, **kwargs)
+
+    if len(args) != 2:
+        raise ErrorImportacion("M4 requiere entrada y dataset explicitos")
+
+    opciones = kwargs.copy()
+    sobrescribir = opciones.pop("sobrescribir", False)
+    opciones.pop("interactivo", None)
+
+    if sobrescribir:
+        raise ErrorImportacion(
+            "M4 no permite sobrescribir casos cifrados. Use otro nombre."
+        )
+
+    try:
+        return _m4_importar_cifrado(
+            args[0], args[1], **opciones
+        )
+    except _M4ErrorBoveda as error:
+        raise ErrorImportacion(str(error)) from error
+
+
 def main():
     global DATASET, ORG, PLATAFORMA, CUENTAS_M4
     ap = argparse.ArgumentParser(description="Interfaz web local del importador de WhatsApp")
