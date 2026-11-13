@@ -343,6 +343,26 @@ class Manejador(BaseHTTPRequestHandler):
                     return self._error("Caso no encontrado", 404)
                 d = self._leer_json()
                 return self._json(PLATAFORMA.crear(partes[2], int(d.get("bloques") or 2), bool(d.get("adjuntos"))))
+            if partes == ["api", "analizar"]:
+                # Varias conversaciones de una vez: el servidor las crea en segundo plano (cada una tarda varios
+                # segundos en dividirse y publicarse). Antes lo hacía la página una por una y, si se recargaba,
+                # las que faltaban no se mandaban.
+                if not PLATAFORMA:
+                    return self._error(estado_plataforma()["error"], 503)
+                d = self._leer_json()
+                casos = [c for c in d.get("casos") or [] if self._caso(str(c))]
+                if not casos:
+                    return self._error("No se indicaron conversaciones válidas")
+                bloques, adjuntos = int(d.get("bloques") or 2), bool(d.get("adjuntos"))
+
+                def crear_todos():
+                    for c in casos:
+                        try:
+                            PLATAFORMA.crear(c, bloques, adjuntos)
+                        except Exception as e:  # noqa: BLE001 — una que falle no detiene las demás
+                            print(f"[analizar] {c}: {type(e).__name__}: {e}")
+                threading.Thread(target=crear_todos, daemon=True, name="analizar-lote").start()
+                return self._json({"ok": casos, "en_segundo_plano": True})
             if partes == ["api", "plataforma", "reiniciar"]:
                 if not PLATAFORMA:
                     return self._error(estado_plataforma()["error"], 503)

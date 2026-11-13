@@ -1132,7 +1132,7 @@ function renderLote(carpeta) {
     try {
       const r = await analizarCasos([...st.marcados], $("#adjLote").checked);
       st.avisoLote = `<div style="padding:10px 20px">${r.ok.length ? `<div class="aviso" style="background:var(--agua-suave);border-color:var(--agua);color:var(--petroleo)">${icono("division")}<span>
-          ${fmtN(r.ok.length)} ${r.ok.length === 1 ? "conversación enviada" : "conversaciones enviadas"} a los workers. El avance se ve en la columna Riesgo; los resultados, en <a href="#/riesgos">Riesgos</a>.
+          ${fmtN(r.ok.length)} ${r.ok.length === 1 ? "conversación enviada" : "conversaciones enviadas"} a los workers. El servidor las va preparando una por una (unos segundos cada una), aunque cierre o recargue la página; el avance se ve en Workers → Trabajos recientes y los resultados, en <a href="#/riesgos">Riesgos</a>.
           ${r.sinWorkers ? "<b>No hay workers conectados:</b> quedan en cola hasta que se conecte uno." : ""}</span></div>` : ""}
         ${r.fallos.length ? `<div class="error" style="margin-top:8px">${icono("alerta")}<span>${r.fallos.map(esc).join("<br>")}</span></div>` : ""}</div>`;
       st.marcados.clear();
@@ -1171,14 +1171,14 @@ async function analizarCasos(casos, adjuntos) {
   if (!p?.configurado || !p?.conectado) throw new Error(p?.error || "No hay conexión con la plataforma de workers");
   const activos = p.workers.filter(w => w.activo && (w.pools || []).includes("texto")).length;
   const bloques = Math.max(2, activos);
-  const ok = [], fallos = [];
+  const fallos = [], pedir = [];
   for (const c of casos) {
     const x = st.casos.find(y => y.caso === c);
-    if (x?.procesando) { fallos.push(`${x.chat || c}: ya se está analizando`); continue; }
-    try { await api(`/api/casos/${encodeURIComponent(c)}/paralelo`, JSON_POST({bloques, adjuntos})); ok.push(c); }
-    catch (e) { fallos.push(`${x?.chat || c}: ${e.message}`); }
+    if (x?.procesando) fallos.push(`${x.chat || c}: ya se está analizando`); else pedir.push(c);
   }
-  return {ok, fallos, sinWorkers: activos === 0};
+  // el servidor las crea en segundo plano: se puede recargar o cerrar la página sin perder ninguna
+  const r = pedir.length ? await api("/api/analizar", JSON_POST({casos: pedir, bloques, adjuntos})) : {ok: []};
+  return {ok: r.ok, fallos, sinWorkers: activos === 0};
 }
 
 async function moverCasos(casos, carpeta) {
